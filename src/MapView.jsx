@@ -1056,11 +1056,11 @@ console.log("MapView rendering");
  onClick={clearMarkers}
  style={{
  marginTop: '1rem',
- padding: '0.4rem 0.8rem',
+ padding: '0.5rem 0.8rem',
  background: '#dc3545',
  color: 'white',
  border: 'none',
- borderRadius: '5px',
+ borderRadius: '20px',
  cursor: 'pointer',
  width: '100%',
  fontSize: '0.9rem',
@@ -1396,7 +1396,7 @@ return (
  bottom: '60px',
  left: '30px',
  zIndex: 1000,
- background: 'rgba(255, 255, 255, 0.9)',
+ background: 'rgba(195, 189, 189, 0.9)',
  padding: '8px 12px',
  borderRadius: '20px',
  boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
