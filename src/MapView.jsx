@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   MapContainer,
   TileLayer,
   Marker,
   Popup,
-  useMapEvents,
   useMap,
 } from 'react-leaflet';
 import { v4 as uuidv4 } from 'uuid';
@@ -147,13 +146,13 @@ const MapView = () => {
   // NEW STATES FOR SEARCH FUNCTIONALITY
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilterBar, setShowFilterBar] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
+  const [, setSearchResults] = useState([]);
   const [savedNotification, setSavedNotification] = useState(null);
   const [showUserPopup, setShowUserPopup] = useState(false);
   const [suggestions, setSuggestions] = useState([]); // Live search suggestions
-const [weatherData, setWeatherData] = useState(null);
-const [showWeatherDetails, setShowWeatherDetails] = useState(false);
-const routingCleanupRef = useRef(false);
+  const [weatherData, setWeatherData] = useState(null);
+  const [, setShowWeatherDetails] = useState(false);
+  const routingCleanupRef = useRef(false);
 
 
   // Predefined static markers (moved to fix 'used before defined' warning)
@@ -202,23 +201,7 @@ const routingCleanupRef = useRef(false);
   };
 }, []);
 
-  // Function to fetch address from coordinates using Nominatim
-  const fetchAddress = async (latlng) => {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat}&lon=${latlng.lng}`
-      );
-      const data = await res.json();
-      if (data && data.display_name) {
-        setAddress(data.display_name);
-      } else {
-        setAddress('Address not found');
-      }
-    } catch {
-      setAddress('Error fetching address');
-    }
-  };
-
+  
 
   const handleSubmit = (e) => {
   e.preventDefault();
@@ -303,24 +286,23 @@ const handleGetDirections = (markerPosition) => {
   }, 50);
 };
 
-  // Function to fetch data from Overpass API based on category and user location
-  const fetchOverpassData = async (category) => {
-    if (!userLocation) return [];
 
-    // Map your UI categories to Overpass tags
-    const overpassTags = {
-      School: 'amenity=school',
-      'Fast Food': 'amenity=fast_food',
-      Gym: 'leisure=fitness_centre',
-      Bank: 'amenity=bank',
-      'Gas Station': 'amenity=fuel',
-    };
+const fetchOverpassData = useCallback(async (category) => {
+  if (!userLocation) return [];
 
-    const tag = overpassTags[category];
-    if (!tag) return [];
+  const overpassTags = {
+    School: 'amenity=school',
+    'Fast Food': 'amenity=fast_food',
+    Gym: 'leisure=fitness_centre',
+    Bank: 'amenity=bank',
+    'Gas Station': 'amenity=fuel',
+  };
 
-    const radius = 10000; // 10km radius
-    const query = `
+  const tag = overpassTags[category];
+  if (!tag) return [];
+
+  const radius = 10000;
+  const query = `
     [out:json][timeout:25];
     (
       node[${tag}](around:${radius},${userLocation.lat},${userLocation.lng});
@@ -330,57 +312,53 @@ const handleGetDirections = (markerPosition) => {
     out center;
   `;
 
-    try {
-      const response = await fetch('https://overpass-api.de/api/interpreter', {
-        method: 'POST',
-        body: query,
-      });
-      const data = await response.json();
+  try {
+    const response = await fetch('https://overpass-api.de/api/interpreter',  {
+      method: 'POST',
+      body: query,
+    });
+    const data = await response.json();
 
-      return data.elements
-        .map((el) => ({
-          id: `osm-${el.id}`, // Prefix with 'osm-' to distinguish from user-added
-          position: {
-            lat: el.lat || el.center?.lat,
-            lng: el.lon || el.center?.lon,
-          },
-          name: el.tags?.name || category, // Use OSM name or default to category
-          address: el.tags?.addr ? Object.values(el.tags.addr).join(', ') : 'OpenStreetMap POI', // Attempt to construct address
-          category: category, // Ensure category is set for fetched markers
-        }))
-        .filter((m) => m.position.lat && m.position.lng); // Ensure valid coordinates
-    } catch (err) {
-      console.error('Error fetching Overpass data:', err);
-      return [];
+    return data.elements.map((el) => ({
+      id: `osm-${el.id}`,
+      position: {
+        lat: el.lat || el.center?.lat,
+        lng: el.lon || el.center?.lon,
+      },
+      name: el.tags?.name || category,
+      address: el.tags?.addr ? Object.values(el.tags.addr).join(', ') : 'OpenStreetMap POI',
+      category: category,
+    })).filter((m) => m.position.lat && m.position.lng);
+  } catch (err) {
+    console.error('Error fetching Overpass data:', err);
+    return [];
+  }
+}, [userLocation]); // ✅ Dependency added here
+
+useEffect(() => {
+  const fetchAllActiveCategories = async () => {
+    if (!userLocation) {
+      setFetchedMarkers([]);
+      return;
     }
+
+    const allFetched = [];
+    for (const cat of activeFilters) {
+      const results = await fetchOverpassData(cat);
+
+      const uniqueResults = results.filter(
+        (newMarker) => !allFetched.some((existingMarker) => existingMarker.id === newMarker.id)
+      );
+
+      allFetched.push(...uniqueResults);
+    }
+
+    setFetchedMarkers(allFetched);
   };
 
-  // Effect to fetch data whenever activeFilters or userLocation changes
-  // This ensures fetchedMarkers always reflects the *current* set of active filters
-  useEffect(() => {
-    const fetchAllActiveCategories = async () => {
-      if (!userLocation) {
-        setFetchedMarkers([]); // Clear fetched markers if no user location
-        return;
-      }
+  fetchAllActiveCategories();
+}, [fetchOverpassData, activeFilters, userLocation]); // ✅ Safe now!
 
-
-      
-
-      const allFetched = [];
-      for (const cat of activeFilters) {
-        const results = await fetchOverpassData(cat);
-        // Only add results that are not already present (to prevent duplicates if multiple filters are on)
-        const uniqueResults = results.filter(
-            (newMarker) => !allFetched.some((existingMarker) => existingMarker.id === newMarker.id)
-        );
-        allFetched.push(...uniqueResults);
-      }
-      setFetchedMarkers(allFetched);
-    };
-
-    fetchAllActiveCategories();
-  }, [activeFilters, userLocation]);
 
 
   // Function to toggle filters (simplified)
@@ -600,7 +578,7 @@ useEffect(() => {
   if (userLocation) {
     debouncedFetchWeather(userLocation.lat, userLocation.lng);
   }
-}, [userLocation]);
+}, [userLocation, debouncedFetchWeather]);
 
 
 
@@ -1288,7 +1266,7 @@ console.log("MapView rendering");
                   localStorage.setItem('markers', JSON.stringify(updatedMarkers));
                 };
 
-                {/* Calculate if marker is already saved */}
+                
 const alreadySaved = markers.some((m) => m.id === marker.id);
 
 return (
