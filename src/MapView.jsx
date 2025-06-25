@@ -10,26 +10,27 @@ import { v4 as uuidv4 } from 'uuid';
 import L from 'leaflet';
 import 'leaflet-routing-machine';
 import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
+import 'leaflet-control-geocoder/dist/Control.Geocoder.css'; 
+import 'leaflet-control-geocoder'; 
 import { motion, AnimatePresence } from 'framer-motion';
 import pinIcon from './assets/pin.png';
 import { debounce } from 'lodash';
 
 
-// --- START: Definitions for Reusable Components and Icons ---
 
 
 
-// Custom icon for the user's current location (uses local pin.png)
+
 const userIcon = new L.Icon({
  iconUrl: pinIcon,
- iconSize: [45, 45], // Adjust if needed based on your image size
+ iconSize: [45, 45], 
  iconAnchor: [12, 41],
  popupAnchor: [1, -34],
- shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png', // Optional: keep default shadow
+ shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
  shadowSize: [41, 41]
 });
 
-// Icons URLs for filters
+
 const icons = {
  School: '🏫',
  'Fast Food': '🍔',
@@ -50,17 +51,15 @@ function LocateUser({ onLocate, setShowUserPopup }) {
  maxZoom: 16,
  enableHighAccuracy: true
  }).on('locationfound', function (e) {
- // Set user location and show popup
+
  onLocate(e.latlng);
  setShowUserPopup(true);
 
- // Hide after 5 seconds
  setTimeout(() => {
  setShowUserPopup(false);
  }, 5000);
  });
 
- // Optional: Handle location errors
  map.on('locationerror', function(e) {
  console.error("Location error:", e.message);
  alert("Could not retrieve your location.");
@@ -75,87 +74,212 @@ function LocateUser({ onLocate, setShowUserPopup }) {
  return null;
 }
 
-// --- END: Definitions for Reusable Components and Icons ---
-// Define custom icons for each category
 const categoryIcons = {
  School: new L.Icon({
- iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', 
- shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png', 
+ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+ shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
  iconSize: [25, 41],
  iconAnchor: [12, 41],
  popupAnchor: [1, -34],
  }),
  'Fast Food': new L.Icon({
- iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png', 
- shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png', 
+ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
+ shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
  iconSize: [25, 41],
  iconAnchor: [12, 41],
  popupAnchor: [1, -34],
  }),
  Gym: new L.Icon({
- iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', 
- shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png', 
+ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+ shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
  iconSize: [25, 41],
  iconAnchor: [12, 41],
  popupAnchor: [1, -34],
  }),
  Bank: new L.Icon({
- iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', 
- shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png', 
+ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+ shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
  iconSize: [25, 41],
  iconAnchor: [12, 41],
  popupAnchor: [1, -34],
  }),
  'Gas Station': new L.Icon({
- iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png', 
- shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png', 
+ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png',
+ shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
  iconSize: [25, 41],
  iconAnchor: [12, 41],
  popupAnchor: [1, -34],
  }),
  Work: new L.Icon({
- iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png', 
- shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png', 
+ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png',
+ shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
  iconSize: [25, 41],
  iconAnchor: [12, 41],
  popupAnchor: [1, -34],
  }),
  Other: new L.Icon({
- iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png', 
- shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png', 
+ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png',
+ shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
  iconSize: [25, 41],
  iconAnchor: [12, 41],
  popupAnchor: [1, -34],
  }),
 };
 
-const MapView = () => {
- const [markers, setMarkers] = useState([]); // User-added markers
- const [showForm, setShowForm] = useState(false); // State for showing marker add form
- const [showSidebar, setShowSidebar] = useState(false); // State for showing sidebar
- const [newMarkerPosition, setNewMarkerPosition] = useState(null); // Position for new marker
- const [placeName, setPlaceName] = useState(''); // Name for new marker
- const [category, setCategory] = useState('School'); // Category for new marker
- const [userLocation, setUserLocation] = useState(null); // User's current location
- const [address, setAddress] = useState(''); // Address for new marker
- const [activeFilters, setActiveFilters] = useState([]); // Active filter categories
- const mapRef = useRef(null); // Reference to the Leaflet map instance
- const [routing, setRouting] = useState(null); // State to control routing {from, to}
- const [fetchedMarkers, setFetchedMarkers] = useState([]); // Markers fetched from Overpass API
+const RoutingMachine = ({ from, to, routingStateSetter }) => {
+  const map = useMap();
+  const routingControlRef = useRef(null);
 
- // NEW STATES FOR SEARCH FUNCTIONALITY
+  useEffect(() => {
+    if (!map || !from || !to) {
+      routingStateSetter(false);
+      return;
+    }
+const createPlan = L.Routing.Plan.extend({
+  createGeocoders: function () {
+    const container = L.DomUtil.create('div', 'leaflet-routing-plan');
+    L.DomEvent.disableClickPropagation(container);
+
+    
+    const closeBtn = L.DomUtil.create('button', '', container);
+    closeBtn.innerHTML = '×';
+    closeBtn.style.cssText = `
+      background-color: transparent;
+      color: red;
+      border: none;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      line-height: 20px;
+      text-align: center;
+      font-size: 18px;
+      font-weight: bold;
+      float: right;
+      margin: 8px;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    `;
+
+    
+    closeBtn.addEventListener('mouseenter', () => {
+      closeBtn.style.transform = 'scale(1.2)';
+      closeBtn.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+    });
+
+    closeBtn.addEventListener('mouseleave', () => {
+      closeBtn.style.transform = 'scale(1)';
+      closeBtn.style.boxShadow = 'none';
+    });
+
+    
+    L.DomEvent.on(closeBtn, 'click', (e) => {
+      L.DomEvent.stopPropagation(e);
+      if (routingControlRef.current && routingControlRef.current._map) {
+        routingControlRef.current.remove();
+        routingStateSetter(false);
+        routingControlRef.current = null;
+      }
+    });
+
+    return container;
+  }
+});
+
+
+    const plan = new createPlan([
+      L.latLng(from.lat, from.lng),
+      L.latLng(to.lat, to.lng)
+    ], {
+      geocoder: L.Control.Geocoder.nominatim(),
+      routeWhileDragging: true,
+      createMarker: () => null
+    });
+
+    const routingControl = L.Routing.control({
+  plan: plan,
+  lineOptions: {
+    styles: [{ color: 'blue', weight: 6, opacity: 0.7 }]
+  },
+  showAlternatives: false,
+  addWaypoints: false,
+  routeWhileDragging: true,
+  waypoints: []
+});
+
+
+    routingControl.addTo(map);
+    routingControlRef.current = routingControl;
+    routingStateSetter(true);
+
+   
+setTimeout(() => {
+  const closeBtn = document.querySelector('.leaflet-routing-collapse-btn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      if (routingControlRef.current && routingControlRef.current._map) {
+        routingControlRef.current.remove();
+        routingStateSetter(false);
+        routingControlRef.current = null;
+      }
+    });
+  }
+}, 0); 
+    const onCollapsed = () => {
+      if (routingControlRef.current && routingControlRef.current._map) {
+        routingControlRef.current.remove(); 
+      }
+      routingStateSetter(false); 
+      routingControlRef.current = null;
+    };
+
+    routingControl.on('collapsed', onCollapsed);
+
+
+  
+    return () => {
+      if (routingControlRef.current && routingControlRef.current._map) {
+        routingControlRef.current.off('collapsed', onCollapsed);
+        routingControlRef.current.remove();
+      }
+      routingStateSetter(false);
+    };
+  }, [map, from, to, routingStateSetter]);
+
+  return null;
+};
+
+
+
+
+
+const MapView = () => {
+ const [markers, setMarkers] = useState([]); 
+ const [showForm, setShowForm] = useState(false); 
+ const [showSidebar, setShowSidebar] = useState(false); 
+ const [newMarkerPosition, setNewMarkerPosition] = useState(null); 
+ const [placeName, setPlaceName] = useState(''); 
+ const [category, setCategory] = useState('School'); 
+ const [userLocation, setUserLocation] = useState(null); 
+ const [address, setAddress] = useState(''); 
+ const [activeFilters, setActiveFilters] = useState([]); 
+ const mapRef = useRef(null); 
+ const [routing, setRouting] = useState(null); 
+ const [fetchedMarkers, setFetchedMarkers] = useState([]); 
+
+
  const [searchTerm, setSearchTerm] = useState('');
  const [showFilterBar, setShowFilterBar] = useState(false);
  const [, setSearchResults] = useState([]);
  const [savedNotification, setSavedNotification] = useState(null);
  const [showUserPopup, setShowUserPopup] = useState(false);
- const [suggestions, setSuggestions] = useState([]); // Live search suggestions
+ const [suggestions, setSuggestions] = useState([]); 
  const [weatherData, setWeatherData] = useState(null);
  const [, setShowWeatherDetails] = useState(false);
- const routingCleanupRef = useRef(false);
+ const [, setIsRoutingActive] = useState(false); 
+ const [showWeatherDetailsHover, setShowWeatherDetailsHover] = useState(false);
 
 
- // Predefined static markers (moved to fix 'used before defined' warning)
+
  const predefinedMarkers = [
  ];
 
@@ -168,8 +292,11 @@ const MapView = () => {
  searchTerm,
 });
 
- // Load markers from local storage on component mount
+
+
+
  useEffect(() => {
+
  const stored = localStorage.getItem('markers');
  if (stored) setMarkers(JSON.parse(stored));
  }, []);
@@ -190,6 +317,7 @@ const MapView = () => {
  transform: translateX(-50%) scale(0.95);
  }
  100% {
+ opacity: 0;
  transform: translateX(-50%) scale(1);
  }
  }
@@ -201,7 +329,7 @@ const MapView = () => {
  };
 }, []);
 
- 
+
 
  const handleSubmit = (e) => {
  e.preventDefault();
@@ -221,70 +349,33 @@ const MapView = () => {
  setNewMarkerPosition(null);
  setAddress('');
 
- // Fetch weather at new marker's location
+
  fetchWeather(newMarkerPosition.lat, newMarkerPosition.lng);
 };
 
- // Function to clear all user-added markers
+
  const clearMarkers = () => {
  setMarkers([]);
  localStorage.removeItem('markers');
- setRouting(null); // Clear any active route when clearing markers
+ setRouting(null); 
  };
 
-const handleGetDirections = (markerPosition) => {
- console.log("handleGetDirections called", { userLocation, markerPosition });
- 
- if (!userLocation) {
- alert("Please allow location access to get directions.");
- return;
- }
+const handleGetDirections = useCallback((markerPosition) => {
+    console.log("handleGetDirections called", { userLocation, markerPosition });
 
- if (routingCleanupRef.current) {
- console.log("Still cleaning up previous route...");
- return;
- }
+    if (!userLocation) {
+        alert("Please allow location access to get directions.");
+        return;
+    }
 
- routingCleanupRef.current = true;
- console.log("Clearing existing route");
- setRouting(null);
+   
+    setRouting({
+        from: userLocation,
+        to: markerPosition
+    });
+    setIsRoutingActive(true);
 
- setTimeout(() => {
- const newRoute = { from: userLocation, to: markerPosition };
- console.log("Setting new route:", newRoute);
- setRouting(newRoute);
-
- setTimeout(() => {
- routingCleanupRef.current = false;
- console.log("Routing cleanup complete");
- }, 300);
- }, 50);
-
-
- 
-
- // Prevent duplicate calls during cleanup
- if (routingCleanupRef.current) return;
-
- // Lock future calls until cleanup completes
- routingCleanupRef.current = true;
-
- // Clear existing routing state
- setRouting(null);
-
- // Wait briefly to let cleanup finish
- setTimeout(() => {
- setRouting({
- from: userLocation,
- to: markerPosition
- });
-
- // Unlock after delay to avoid infinite lock
- setTimeout(() => {
- routingCleanupRef.current = false;
- }, 300); // Adjust based on how long cleanup takes
- }, 50);
-};
+}, [userLocation]);
 
 
 const fetchOverpassData = useCallback(async (category) => {
@@ -333,7 +424,7 @@ const fetchOverpassData = useCallback(async (category) => {
  console.error('Error fetching Overpass data:', err);
  return [];
  }
-}, [userLocation]); // ✅ Dependency added here
+}, [userLocation]); 
 
 useEffect(() => {
  const fetchAllActiveCategories = async () => {
@@ -357,25 +448,25 @@ useEffect(() => {
  };
 
  fetchAllActiveCategories();
-}, [fetchOverpassData, activeFilters, userLocation]); // ✅ Safe now!
+}, [fetchOverpassData, activeFilters, userLocation]);
 
 
 
- // Function to toggle filters (simplified)
+
  const toggleFilter = (cat) => {
  setActiveFilters((prevFilters) => {
  if (prevFilters.includes(cat)) {
- // Remove filter
+
  return prevFilters.filter((c) => c !== cat);
  } else {
- // Add filter
+
  return [...prevFilters, cat];
  }
  });
- setRouting(null); // Clear route when filters change
+ setRouting(null); 
  };
 
- // --- NEW: handleSearch function for geocoding ---
+
  const handleSearch = async () => {
  if (!searchTerm.trim()) {
  alert("Please enter a place or address to search.");
@@ -383,17 +474,16 @@ useEffect(() => {
  }
 
  try {
- // Use Nominatim's search endpoint
+
  const response = await fetch(
- `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchTerm)}&limit=5&addressdetails=1` // Added addressdetails for better address parsing
+ `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchTerm)}&limit=5&addressdetails=1` // 
  );
  const data = await response.json();
 
  if (data && data.length > 0) {
- setSearchResults(data); // Store results
- // Optionally, center the map on the first result
+ setSearchResults(data); 
  if (mapRef.current) {
- mapRef.current.setView([data[0].lat, data[0].lon], 14); // Zoom to 14
+ mapRef.current.setView([data[0].lat, data[0].lon], 14); 
  }
  } else {
  setSearchResults([]);
@@ -404,19 +494,15 @@ useEffect(() => {
  alert("Error searching for place. Please try again.");
  }
  };
- // --- END: handleSearch function for geocoding ---
-
-
- // Normalize active filters for case-insensitive comparison
  const normalizedActiveFilters = activeFilters
  .filter(Boolean)
  .map((f) => (f || '').trim().toLowerCase());
 
- // Helper function to calculate distance between two lat/lon points
+
  function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
- const R = 6371; // Radius of the earth in km
+ const R = 6371; 
  const dLat = deg2rad(lat2 - lat1);
- const dLon = deg2rad(lon2 - lon1); // Corrected: Should be deg2rad(lon2 - lon1)
+ const dLon = deg2rad(lon2 - lon1); 
  const a =
  Math.sin(dLat / 2) * Math.sin(dLat / 2) +
  Math.cos(deg2rad(lat1)) *
@@ -424,11 +510,11 @@ useEffect(() => {
  Math.sin(dLon / 2) *
  Math.sin(dLon / 2);
  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
- const d = R * c; // Distance in km
+ const d = R * c; 
  return d;
  }
 
-// Debounce hook
+
 function useDebounce(value, delay) {
  const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -445,8 +531,8 @@ function useDebounce(value, delay) {
  return debouncedValue;
 }
 
-// Live search suggestions
-const debouncedSearchTerm = useDebounce(searchTerm, 300); // Wait 300ms after typing
+
+const debouncedSearchTerm = useDebounce(searchTerm, 300); 
 
 useEffect(() => {
  if (!debouncedSearchTerm.trim()) {
@@ -474,15 +560,14 @@ useEffect(() => {
  fetchSuggestions();
 }, [debouncedSearchTerm]);
 
- // Helper function to convert degrees to radians
+
  function deg2rad(deg) {
  return deg * (Math.PI / 180);
  }
 
- // Filter markers based on active filters and user location (within 10km radius)
  const filteredMarkers =
  activeFilters.length === 0 || !userLocation
- ? [...markers, ...predefinedMarkers] // Only show user-added and predefined if no filters are active
+ ? [...markers, ...predefinedMarkers]
  : [
  ...markers.filter(
  (marker) =>
@@ -510,8 +595,7 @@ useEffect(() => {
  marker.position.lng
  ) <= 10
  ),
- // Fetched markers are now already filtered by category due to the new useEffect
- // We still need to filter by distance here
+
  ...fetchedMarkers.filter(
  (marker) =>
  getDistanceFromLatLonInKm(
@@ -525,7 +609,7 @@ useEffect(() => {
 
 
  const fetchWeather = async (lat = userLocation?.lat, lng = userLocation?.lng) => {
- const apiKey = '21fc67147755e1e200b36618e837e9e3'; // ← Replace this with real key or use env var
+ const apiKey = '21fc67147755e1e200b36618e837e9e3'; 
  if (!lat || !lng) {
  console.warn("Latitude or longitude missing");
  return;
@@ -580,12 +664,43 @@ useEffect(() => {
  }
 }, [userLocation, debouncedFetchWeather]);
 
+useEffect(() => {
+  const originalClearLines = L.Routing.Control.prototype._clearLines;
+
+  L.Routing.Control.prototype._clearLines = function () {
+    try {
+      if (this._map && this._lineLayers) {
+        this._lineLayers.forEach((layer) => {
+          try {
+            this._map.removeLayer(layer);
+          } catch (err) {
+            console.warn("Error removing layer:", err);
+          }
+        });
+      }
+    } catch (e) {
+      console.warn("Safe _clearLines error:", e);
+    }
+
+    
+    try {
+      return originalClearLines.call(this);
+    } catch (err) {
+      console.warn("Calling original _clearLines failed:", err);
+    }
+  };
+
+  return () => {
+    L.Routing.Control.prototype._clearLines = originalClearLines;
+  };
+}, []);
+
 
 
 console.log("MapView rendering");
 
  return (
- // Wrap everything in a React Fragment to satisfy JSX single root element requirement
+
  <>
 
  <style>
@@ -621,6 +736,55 @@ console.log("MapView rendering");
  `}
  </style>
 
+<style>
+  {`
+    /* Customize the main directions panel */
+    .leaflet-routing-container {
+      background-color: #ffffff !important;
+      border-radius: 20px !important;
+      top: 50px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+      font-family: Arial, sans-serif !important;
+      overflow: hidden !important;
+    }
+
+    /* Customize the summary row at the top */
+    .leaflet-routing-summary {
+      background-color: #e9ecef !important;
+      color: #333 !important;
+      font-weight: bold !important;
+      text-align: center !important;
+      padding: 10px !important;
+    }
+
+    /* Customize each step in the itinerary */
+    .leaflet-routing-itinerary {
+      background-color: #f9f9f9 !important;
+      margin-bottom: 10px !important;
+      border-radius: 8px !important;
+      padding: 10px !important;
+    }
+
+    /* Customize waypoint markers */
+    .leaflet-routing-waypoint-indicator {
+      background-color: #007bff !important;
+      border-color: #0056b3 !important;
+    }
+
+    /* Optional: Style the close button */
+    .leaflet-routing-collapse-btn {
+      background-color: #dc3545 !important;
+      color: white !important;
+      border-radius: 50% !important;
+      width: 24px !important;
+      height: 24px !important;
+      line-height: 20px !important;
+      text-align: center !important;
+      font-size: 18px !important;
+      font-weight: bold !important;
+    }
+  `}
+</style>
 
  <style>
  {`
@@ -643,7 +807,7 @@ console.log("MapView rendering");
  }
  }
  `}
- </style>
+</style>
  <style>
  {`
  .leaflet-control-zoom {
@@ -653,7 +817,7 @@ console.log("MapView rendering");
 </style>
 
 
-{/* Saved Notification */}
+
 {savedNotification && (
  <div
  style={{
@@ -673,7 +837,7 @@ console.log("MapView rendering");
  </div>
 )}
  <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-{/* Animated Filter Bar */}
+
 <AnimatePresence>
  {showFilterBar && (
  <motion.div
@@ -753,17 +917,16 @@ console.log("MapView rendering");
  }}
  title="Clear all markers"
  >
- 
+
  </motion.button>
 
- 
+
  </motion.div>
  )}
 </AnimatePresence>
 
 
- 
-{/* --- START: New Search Bar Section --- */}
+
 
 <div
  style={{
@@ -775,14 +938,14 @@ console.log("MapView rendering");
  gap: '10px',
  flexWrap: 'wrap',
  position: 'absolute',
- top: '20px', // Distance from top
- left: '20px', // Distance from left
+ top: '20px', 
+ left: '20px', 
  zIndex: 1000,
- width: '350px', // Fixed width for consistency
- maxWidth: '90%', // Optional: prevent overflow on small screens
+ width: '350px', 
+ maxWidth: '90%', 
  }}
 >
- {/* Search Bar Wrapper with Icon Inside */}
+
  <div
  style={{
  position: 'relative',
@@ -809,7 +972,7 @@ console.log("MapView rendering");
  }}
  style={{
  width: '100%',
- padding: '17px 45px 17px 15px', // Add padding on both sides
+ padding: '17px 45px 17px 15px', 
  borderRadius: '25px',
  border: '1px solid #ccc',
  fontSize: '0.9em',
@@ -821,7 +984,7 @@ console.log("MapView rendering");
  }}
  />
 
- {/* Search Button / Icon - Positioned Absolutely */}
+ 
  <button
  onClick={handleSearch}
  style={{
@@ -835,7 +998,7 @@ console.log("MapView rendering");
  fontSize: '1.4em',
  cursor: 'pointer',
  zIndex: 1,
- transition: 'transform 0.2s ease, box-shadow 0.2s ease', // Smooth transition
+ transition: 'transform 0.2s ease, box-shadow 0.2s ease', 
  }}
  onMouseEnter={(e) => {
  e.currentTarget.style.transform = 'translateY(-50%) scale(1.15)';
@@ -850,7 +1013,7 @@ console.log("MapView rendering");
  </button>
  </div>
 
- {/* Autocomplete Suggestions */}
+ 
  {suggestions.length > 0 && (
  <div
  style={{
@@ -918,7 +1081,7 @@ console.log("MapView rendering");
  </div>
  </div>
 
- {/* Save Button */}
+
  <button
  onClick={(e) => {
  e.stopPropagation();
@@ -948,12 +1111,10 @@ console.log("MapView rendering");
  </div>
  )}
 </div>
-{/* --- END: New Search Bar Section --- */}
 
 
 
 
- 
 
 <AnimatePresence>
  {showSidebar && (
@@ -976,7 +1137,7 @@ console.log("MapView rendering");
  overflowY: 'auto',
  }}
  >
- {/* Back Arrow */}
+
  <div style={{
  marginBottom: '1rem',
  textAlign: 'left'
@@ -990,9 +1151,9 @@ console.log("MapView rendering");
  fontWeight: 'bold',
  borderRadius: "20px",
  transition: 'all 0.2s ease',
- display: 'inline-block', // Allows transform effects
+ display: 'inline-block', 
  padding: '5px 10px',
- boxShadow: '0 2px 4px rgba(0, 0, 0, 0)' // Default no shadow
+ boxShadow: '0 2px 4px rgba(0, 0, 0, 0)' 
  }}
  onMouseEnter={(e) => {
  e.currentTarget.style.transform = 'scale(1.1)';
@@ -1010,7 +1171,7 @@ console.log("MapView rendering");
 </span>
 </div>
 
- {/* Heading */}
+
  <h3
  style={{
  fontSize: '1.5rem',
@@ -1025,7 +1186,7 @@ console.log("MapView rendering");
  Saved Places
  </h3>
 
- {/* Saved Markers list */}
+
 {markers.length === 0 ? (
  <p style={{ fontSize: '0.9rem', color: '#666' }}>
  No custom markers added yet.
@@ -1067,7 +1228,7 @@ console.log("MapView rendering");
  transition: 'background 0.3s ease, transform 0.2s ease',
  }}
  onMouseEnter={(e) => {
- e.currentTarget.style.background = '#c82333'; // Darker red
+ e.currentTarget.style.background = '#c82333'; 
  e.currentTarget.style.transform = 'scale(1.02)';
  }}
  onMouseLeave={(e) => {
@@ -1078,14 +1239,14 @@ console.log("MapView rendering");
  Clear All Saved Markers
 </button>
 
- {/* Back Arrow + Heading */}
+
 <div style={{
  display: 'flex',
  alignItems: 'center',
  justifyContent: 'flex-start',
  marginBottom: '1rem'
 }}>
- 
+
 </div>
  </motion.div>
  )}
@@ -1160,8 +1321,8 @@ console.log("MapView rendering");
  </select>
  </label>
  <div>
- 
- 
+
+
  {address}
  </div>
  <button
@@ -1183,29 +1344,6 @@ console.log("MapView rendering");
  </div>
  )}
 
- {userLocation && newMarkerPosition && showForm && (
- <button
- onClick={() => handleGetDirections(newMarkerPosition)}
- style={{
- position: 'absolute',
- bottom: '10px',
- left: '10px',
- zIndex: 1000,
- padding: '0.5rem 1rem',
- background: '#007bff',
- color: 'white',
- border: 'none',
- borderRadius: '5px',
- cursor: 'pointer',
- boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
- }}
- >
- 
- </button>
- )}
-
-
- {/* Sidebar Toggle Button - Always Visible in Top Right */}
 <div style={{
  position: 'absolute',
  top: '21px',
@@ -1246,17 +1384,20 @@ console.log("MapView rendering");
  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
  />
- 
- <LocateUser 
- onLocate={setUserLocation} 
- setUserLocation={setUserLocation} 
- setShowUserPopup={setShowUserPopup} 
+
+ <LocateUser
+ onLocate={setUserLocation}
+ setUserLocation={setUserLocation}
+ setShowUserPopup={setShowUserPopup}
 />
+
+
+ {routing && <RoutingMachine from={routing.from} to={routing.to} routingStateSetter={setIsRoutingActive} />}
 
 
  {filteredMarkers.map((marker) => {
  const isFetched = marker.id.startsWith('osm-');
- 
+
 
  const distance = userLocation
  ? getDistanceFromLatLonInKm(
@@ -1267,14 +1408,15 @@ console.log("MapView rendering");
  ).toFixed(2)
  : null;
 
- // New function to handle marker deletion
+
  const handleDeleteMarker = (markerId) => {
  const updatedMarkers = markers.filter((m) => m.id !== markerId);
  setMarkers(updatedMarkers);
  localStorage.setItem('markers', JSON.stringify(updatedMarkers));
+ setRouting(null); 
  };
 
- 
+
 const alreadySaved = markers.some((m) => m.id === marker.id);
 
 return (
@@ -1292,14 +1434,34 @@ return (
  </>
  )}
 
- {/* Show Save button only if fetched and not already saved */}
+
+ {userLocation && ( 
+ <button
+ onClick={() => handleGetDirections(marker.position)}
+ style={{
+ marginTop: '0.5rem',
+ padding: '0.3rem 0.6rem',
+ background: '#007bff',
+ color: 'white',
+ border: 'none',
+ borderRadius: '5px',
+ cursor: 'pointer',
+ fontSize: '0.9em',
+ marginRight: '0.5rem'
+ }}
+ >
+ Get Directions From Your Location 
+ </button>
+ )}
+
+
  {isFetched && !alreadySaved && (
  <button
  onClick={(e) => {
  e.stopPropagation();
 
  const newSaved = {
- // If marker doesn't have an ID or it's from Overpass, use a UUID
+
  id: marker.id ? `${marker.id}-${uuidv4()}` : uuidv4(),
  position: marker.position,
  name: marker.name,
@@ -1314,10 +1476,10 @@ return (
  setNewMarkerPosition(null);
  setShowForm(false);
 
- // ✅ Show notification
+
  setSavedNotification("Place saved!");
 
- // ✅ Hide after 2 seconds
+
  setTimeout(() => {
  setSavedNotification(null);
  }, 2000);
@@ -1325,7 +1487,7 @@ return (
  style={{
  marginTop: '0.5rem',
  padding: '0.3rem 0.6rem',
- background: '#007bff',
+ background: '#28a745',
  color: 'white',
  border: 'none',
  borderRadius: '5px',
@@ -1337,7 +1499,7 @@ return (
  </button>
  )}
 
- {/* Show Delete button if already saved */}
+
  {alreadySaved && (
  <button
  onClick={(e) => {
@@ -1359,7 +1521,7 @@ return (
  Delete
  </button>
  )}
- 
+
  </Popup>
  </Marker>
  );
@@ -1390,42 +1552,64 @@ return (
 
 
 {weatherData?.main?.temp && weatherData.name && (
- <div
- style={{
- position: 'absolute',
- bottom: '60px',
- left: '30px',
- zIndex: 1000,
- background: 'rgba(195, 189, 189, 0.9)',
- padding: '8px 12px',
- borderRadius: '20px',
- boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
- cursor: 'pointer',
- display: 'flex',
- alignItems: 'center',
- gap: '8px',
- transition: 'background 0.3s ease',
- }}
- onClick={() => setShowWeatherDetails(true)}
- onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 1)'}
- onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)'}
- >
- <img
- src={`http://openweathermap.org/img/wn/${weatherData.weather[0].icon}@2x.png`}
- alt={weatherData.weather[0].description}
- style={{ height: '30px' }}
- />
- <strong>{Math.round(weatherData.main.temp)}°C</strong>
- <span>{weatherData.name}</span>
- </div>
+  <div
+    style={{
+      position: 'absolute',
+      bottom: '60px',
+      left: '30px',
+      zIndex: 1000,
+      background: 'rgba(195, 189, 189, 0.9)',
+      padding: '8px 12px',
+      borderRadius: '20px',
+      boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+    }}
+    onMouseEnter={() => setShowWeatherDetailsHover(true)}
+    onMouseLeave={() => setShowWeatherDetailsHover(false)}
+    onClick={() => setShowWeatherDetails(true)} 
+  >
+    <img
+      src={`http://openweathermap.org/img/wn/${weatherData.weather[0].icon}@2x.png`}
+      alt={weatherData.weather[0].description}
+      style={{ height: '30px' }}
+    />
+    <strong>{Math.round(weatherData.main.temp)}°C</strong>
+    <span>{weatherData.name}</span>
+
+    {showWeatherDetailsHover && (
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '50px',
+          left: '0%',
+          background: '#ffffff',
+          padding: '10px 15px',
+          borderRadius: '10px',
+          boxShadow: '0 4px 10px rgba(0, 0, 0, 0.15)',
+          fontSize: '0.85rem',
+          color: '#333',
+          minWidth: '160px',
+        }}
+      >
+        <div><strong>Feels Like:</strong> {Math.round(weatherData.main.feels_like)}°C</div>
+        <div><strong>Wind:</strong> {(weatherData.wind.speed * 3.6).toFixed(1)} km/h</div>
+        <div><strong>Humidity:</strong> {weatherData.main.humidity}%</div>
+        <div><strong>Condition:</strong> {weatherData.weather[0].description}</div>
+      </div>
+    )}
+  </div>
 )}
 
- <WeatherOnMove /> {/* ← Add this line */}
+
+ <WeatherOnMove /> 
  </MapContainer>
- </div> {/* Closing div for flex: 1 map content */}
- </div> {/* Closing div for display: flex, flex: 1 body below filter bar */}
- {/* Closing div for display: flex, flexDirection: column, height: 100vh */}
- </> // Closing the React Fragment
+ </div> 
+ </div> 
+ 
+ </> 
  );
 };
 
