@@ -1437,21 +1437,31 @@ return (
 
  {userLocation && ( 
  <button
- onClick={() => handleGetDirections(marker.position)}
- style={{
- marginTop: '0.5rem',
- padding: '0.3rem 0.6rem',
- background: '#007bff',
- color: 'white',
- border: 'none',
- borderRadius: '5px',
- cursor: 'pointer',
- fontSize: '0.9em',
- marginRight: '0.5rem'
- }}
- >
- Get Directions From Your Location 
- </button>
+  onClick={() => handleGetDirections(marker.position)}
+  style={{
+    marginTop: '0.5rem',
+    padding: '0.3rem 0.6rem',
+    background: '#007bff',
+    color: 'white',
+    border: 'none',
+    borderRadius: '5px',
+    cursor: 'pointer',
+    fontSize: '0.9em',
+    marginRight: '0.5rem',
+    transition: 'all 0.2s ease'
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.background = '#0056b3';
+    e.currentTarget.style.transform = 'scale(1.05)';
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.background = '#007bff';
+    e.currentTarget.style.transform = 'scale(1)';
+  }}
+>
+  Get Directions From Your Location
+</button>
+
  )}
 
 
@@ -1492,8 +1502,18 @@ return (
  border: 'none',
  borderRadius: '5px',
  cursor: 'pointer',
- fontSize: '0.9em'
+ fontSize: '0.9em',
+ transition: 'all 0.2s ease'
  }}
+
+ onMouseEnter={(e) => {
+    e.currentTarget.style.background = '#218838';
+    e.currentTarget.style.transform = 'scale(1.05)';
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.background = '#28a745';
+    e.currentTarget.style.transform = 'scale(1)';
+  }}
  >
  Save Place
  </button>
@@ -1515,8 +1535,17 @@ return (
  border: 'none',
  borderRadius: '5px',
  cursor: 'pointer',
- fontSize: '0.9em'
+ fontSize: '0.9em',
+ transition: 'all 0.2s ease'
  }}
+ onMouseEnter={(e) => {
+    e.currentTarget.style.background = '#bd2130';
+    e.currentTarget.style.transform = 'scale(1.05)';
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.background = '#dc3545';
+    e.currentTarget.style.transform = 'scale(1)';
+  }}
  >
  Delete
  </button>
