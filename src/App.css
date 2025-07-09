@@ -1,7 +1,12 @@
+/* App.css */
+/* You might not even need this .App rule if MapView handles everything */
 .App {
-  text-align: center;
+  /* text-align: center; This might center any text rendered directly in App.js,
+     but since you only render MapView, it likely has no effect. */
 }
 
+/* Remove or comment out all of this if you don't use a header */
+/*
 .App-logo {
   height: 40vmin;
   pointer-events: none;
@@ -36,3 +41,4 @@
     transform: rotate(360deg);
   }
 }
+*/
