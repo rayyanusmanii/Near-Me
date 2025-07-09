@@ -1015,7 +1015,7 @@ const MapView = () => {
               transition={{ duration: 0.3 }}
               style={{
                 position: 'absolute',
-                top: showSearchOptions ? '70px' : '70px',
+                top: showSearchOptions ? '60px' : '60px',
                 left: '25%',
                 transform: 'translateX(-50%)',
                 zIndex: 1000,
@@ -1077,7 +1077,7 @@ const MapView = () => {
           onBlur={handleSearchContainerBlur} 
           style={{
             position: 'absolute',
-            top: '70px', // MODIFIED: Moved the entire search bar container down
+            top: '60px', // MODIFIED: Moved the entire search bar container down
             left: '30px',
             zIndex: 1000,
             width: '350px',
@@ -1597,7 +1597,7 @@ const MapView = () => {
 
           <div style={{
             position: 'absolute',
-            top: '21px',
+            top: '60px',
             right: '-10px',
             zIndex: 1000,
           }}>
