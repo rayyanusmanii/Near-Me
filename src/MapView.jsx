@@ -1801,6 +1801,7 @@ const MapView = () => {
             center={[43.68, -79.76]}
             zoom={12}
             style={{ width: '100%', height: '100%' }}
+            attributionControl={false} // Add this line to remove the "Leaflet" attribution
             whenCreated={(mapInstance) => {
               mapRef.current = mapInstance;
               // Add a click handler to the map container itself for general debugging
@@ -1814,7 +1815,7 @@ const MapView = () => {
           >
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              attribution="" // This will remove both "Leaflet" and "OpenStreetMap contributors"
             />
 
             <LocateUser
