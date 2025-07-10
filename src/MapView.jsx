@@ -15,6 +15,8 @@ import 'leaflet-control-geocoder';
 import { motion, AnimatePresence } from 'framer-motion';
 import pinIcon from './assets/pin.png'; // Ensure this path is correct
 import { debounce } from 'lodash';
+import infoIcon from './assets/info.png'; // New import for the information icon
+
 
 // MapPanner Component: Responsible for panning the map when targetPosition changes
 function MapPanner({ targetPosition }) {
@@ -46,7 +48,7 @@ const userIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
-// Custom icon for the trip destination - NEW UNIQUE ICON
+// Custom icon for the trip destination
 const uniqueTripDestinationIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-black.png', // Example: a black marker
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
@@ -66,8 +68,7 @@ const icons = {
 };
 
 // Component to locate the user's current position on the map
-// Modified to accept setMapCenter
-function LocateUser({ onLocate, setShowUserPopup, setMapCenter }) {
+function LocateUser({ onLocate, setShowUserPopup, setMapCenter, setCustomNotification }) {
   const map = useMap();
 
   useEffect(() => {
@@ -78,8 +79,8 @@ function LocateUser({ onLocate, setShowUserPopup, setMapCenter }) {
       maxZoom: 16,
       enableHighAccuracy: true
     }).on('locationfound', function (e) {
-      onLocate(e.latlng); // This sets userLocation
-      setMapCenter(e.latlng); // <--- ADDED: Set mapCenter to user's location
+      onLocate(e.latlng);
+      setMapCenter(e.latlng);
       setShowUserPopup(true);
 
       setTimeout(() => {
@@ -89,15 +90,14 @@ function LocateUser({ onLocate, setShowUserPopup, setMapCenter }) {
 
     map.on('locationerror', function (e) {
       console.error("Location error:", e.message);
-      alert("Could not retrieve your location. Please ensure location services are enabled.");
+      setCustomNotification({ message: "Could not retrieve your location. Please ensure location services are enabled.", type: 'error' });
     });
 
     return () => {
       map.off('locationfound');
       map.off('locationerror');
     };
-  }, [map, onLocate, setShowUserPopup, setMapCenter]);
-  // Added setMapCenter to dependency array
+  }, [map, onLocate, setShowUserPopup, setMapCenter, setCustomNotification]);
   return null;
 }
 
@@ -152,19 +152,34 @@ const categoryIcons = {
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
   }),
+  // NEW ICON FOR AI SUGGESTIONS
+  'AI Suggestion': new L.Icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-purple.png', // A distinct color for AI suggestions
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+  }),
 };
 
-// RoutingMachine component to display directions between two points
-const RoutingMachine = ({ from, to, routingStateSetter }) => {
+// RoutingMachine component to display directions between two points or multiple waypoints
+const RoutingMachine = ({ waypoints, routingStateSetter }) => { // Modified to accept waypoints array
   const map = useMap();
   const routingControlRef = useRef(null);
 
   useEffect(() => {
-    if (!map || !from || !to) {
+    if (!map || !waypoints || waypoints.length < 2) {
       routingStateSetter(false);
+      if (routingControlRef.current) {
+        routingControlRef.current.remove();
+        routingControlRef.current = null;
+      }
       return;
     }
 
+    const leafletWaypoints = waypoints.map(p => L.latLng(p.lat, p.lng));
+
+    // Custom Plan to add a close button
     const createPlan = L.Routing.Plan.extend({
       createGeocoders: function () {
         const container = L.DomUtil.create('div', 'leaflet-routing-plan');
@@ -212,13 +227,16 @@ const RoutingMachine = ({ from, to, routingStateSetter }) => {
       }
     });
 
-    const plan = new createPlan([
-      L.latLng(from.lat, from.lng),
-      L.latLng(to.lat, to.lng)
-    ], {
+    // Remove existing routing control if it exists to prevent duplicates
+    if (routingControlRef.current) {
+      routingControlRef.current.remove();
+      routingControlRef.current = null;
+    }
+
+    const plan = new createPlan(leafletWaypoints, { // Use leafletWaypoints here
       geocoder: L.Control.Geocoder.nominatim(),
       routeWhileDragging: true,
-      createMarker: () => null
+      createMarker: () => null // We will draw our own markers
     });
 
     const routingControl = L.Routing.control({
@@ -227,15 +245,16 @@ const RoutingMachine = ({ from, to, routingStateSetter }) => {
         styles: [{ color: 'blue', weight: 6, opacity: 0.7 }]
       },
       showAlternatives: false,
-      addWaypoints: false,
+      addWaypoints: false, // Important: we manage waypoints ourselves
       routeWhileDragging: true,
-      waypoints: []
+      waypoints: leafletWaypoints // Pass waypoints here
     });
 
     routingControl.addTo(map);
     routingControlRef.current = routingControl;
     routingStateSetter(true);
 
+    // Add event listener for the collapse button if it appears
     setTimeout(() => {
       const closeBtn = document.querySelector('.leaflet-routing-collapse-btn');
       if (closeBtn) {
@@ -266,7 +285,7 @@ const RoutingMachine = ({ from, to, routingStateSetter }) => {
       }
       routingStateSetter(false);
     };
-  }, [map, from, to, routingStateSetter]);
+  }, [map, waypoints, routingStateSetter]); // waypoints is the new dependency
 
   return null;
 };
@@ -283,60 +302,61 @@ const MapView = () => {
   const [address, setAddress] = useState('');
   const [activeFilters, setActiveFilters] = useState([]);
   const mapRef = useRef(null);
-  const [routing, setRouting] = useState(null);
+  // MODIFIED: routing state structure
+  const [routing, setRouting] = useState(null); // { waypoints: [{lat, lng}, ...], routeType: 'single' | 'multi' }
   const [fetchedMarkers, setFetchedMarkers] = useState([]);
 
-  // RENAMED searchTerm to nearMeSearchTerm
   const [nearMeSearchTerm, setNearMeSearchTerm] = useState('');
-  // MODIFIED: Initial state of showFilterBar is now false
   const [showFilterBar, setShowFilterBar] = useState(false);
   const [, setSearchResults] = useState([]);
   const [savedNotification,] = useState(null);
   const [showUserPopup, setShowUserPopup] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [weatherData, setWeatherData] = useState(null);
-  const [,] = useState(false);
-  const [, setIsRoutingActive] = useState(false);
+  const [, setIsRoutingActive] = useState(false); // Still used by RoutingMachine for internal state
   const [showWeatherDetailsHover, setShowWeatherDetailsHover] = useState(false);
 
   const [tripDestination, setTripDestination] = useState(null);
   const [destinationSearchTerm, setDestinationSearchTerm] = useState('');
   const [destinationSuggestions, setDestinationSuggestions] = useState([]);
 
-  // NEW STATES FOR SEARCH BAR BEHAVIOR
-  const [currentSearchType, setCurrentSearchType] = useState('nearMe'); // 'nearMe' or 'destination'
-  const [showSearchOptions, setShowSearchOptions] = useState(false); // Controls visibility of the switch button
-  const searchContainerRef = useRef(null); // Ref for the main search bar container
+  const [currentSearchType, setCurrentSearchType] = useState('nearMe');
+  const [showSearchOptions, setShowSearchOptions] = useState(false);
+  const searchContainerRef = useRef(null);
 
-  // NEW STATE: Controls where the map should pan to
   const [mapCenter, setMapCenter] = useState(null);
 
-  // NEW STATE: For custom notifications (replacing alerts)
   const [customNotification, setCustomNotification] = useState(null);
-  const predefinedMarkers = []; // Your predefined markers if any
+  const predefinedMarkers = [];
 
-  // At the top of your MapView component, with other useRefs
   const sidebarRef = useRef(null);
+
+  const [aiSearchTerm, setAiSearchTerm] = useState('');
+  const [aiSuggestedMarkers, setAiSuggestedMarkers] = useState([]);
+  const [isAiSearching, setIsAiSearching] = useState(false);
+  // State for showing info tooltips
+
 
   console.log("Current state:", {
     userLocation,
-    routing,
+    routing, // Log routing state
     markers: markers.length,
     activeFilters: activeFilters.join(','),
-    nearMeSearchTerm, // Use new state name
+    nearMeSearchTerm,
     tripDestination,
-    currentSearchType, // New state
-    showSearchOptions, // New state
-    mapCenter, // New state
-    customNotification, // New state
-    showFilterBar // Diagnostic for filter bar visibility
+    currentSearchType,
+    showSearchOptions,
+    mapCenter,
+    customNotification,
+    showFilterBar,
+    aiSearchTerm,
+    aiSuggestedMarkers: aiSuggestedMarkers.length,
+    isAiSearching
   });
 
-  // Diagnostic useEffect for sidebarRef.current and showSidebar state
   useEffect(() => {
     console.log("showSidebar state changed to:", showSidebar);
     if (showSidebar) {
-      // Small delay to allow DOM to update before checking ref
       setTimeout(() => {
         console.log("Sidebar is supposed to be visible. sidebarRef.current:", sidebarRef.current);
       }, 50);
@@ -350,16 +370,11 @@ const MapView = () => {
     const storedDestination = localStorage.getItem('tripDestination');
     if (storedDestination) {
       setTripDestination(JSON.parse(storedDestination));
-      // REMOVED: setShowFilterBar(true) from here. Filters should only show on search bar click.
     }
   }, []);
 
   useEffect(() => {
     localStorage.setItem('tripDestination', JSON.stringify(tripDestination));
-    // When tripDestination changes, update filter bar visibility
-    // If tripDestination is set, keep filter bar visible
-    // If tripDestination is cleared, hide filter bar unless a search input is focused
-    // This logic is now primarily handled by the onBlur of the search container
   }, [tripDestination]);
 
   useEffect(() => {
@@ -379,45 +394,36 @@ const MapView = () => {
     };
   }, []);
 
-  // --- MOVED handleDeleteMarker HERE ---
   const handleDeleteMarker = useCallback((markerId) => {
-    console.log("CLICKED: Delete Marker Button (from Popup or Sidebar) -", markerId); // Diagnostic log
+    console.log("CLICKED: Delete Marker Button (from Popup or Sidebar) -", markerId);
     const updatedMarkers = markers.filter((m) => m.id !== markerId);
     setMarkers(updatedMarkers);
     localStorage.setItem('markers', JSON.stringify(updatedMarkers));
     setRouting(null); // Clear routing if a deleted marker was part of a route
-    setCustomNotification({ message: "Place deleted!", type: 'success' }); // ADDED CUSTOM NOTIFICATION
-  }, [markers]); // Add markers to dependency array
+    setCustomNotification({ message: "Place deleted!", type: 'success' });
+  }, [markers]);
 
-  // At the top of your MapView component, with other useRefs
   const handleSearchContainerBlur = useCallback((event) => {
-    // Give a small delay to allow click events on buttons/suggestions/sidebar to register
     setTimeout(() => {
-      const focusedElement = document.activeElement; // The element that currently has focus
+      const focusedElement = document.activeElement;
 
-      // Check if the element that gained focus is within the search container itself,
-      // or within the sidebar (if it exists).
       const isFocusInsideSearch = searchContainerRef.current && searchContainerRef.current.contains(focusedElement);
       const isFocusInsideSidebar = sidebarRef.current && sidebarRef.current.contains(focusedElement);
       const isFocusOnSidebarToggle = document.getElementById('sidebar-toggle-button')?.contains(focusedElement);
 
-
-      // If focus is truly outside BOTH the search container and the sidebar, then hide search options.
-      // We also ensure it's not moving onto the sidebar toggle button itself.
       if (
         !isFocusInsideSearch &&
         !isFocusInsideSidebar &&
         !isFocusOnSidebarToggle
       ) {
-        console.log("BLUR: Hiding search options and/or filter bar."); // Diagnostic log
+        console.log("BLUR: Hiding search options and/or filter bar.");
         setShowSearchOptions(false);
-        // MODIFIED: Set showFilterBar based solely on tripDestination after blur
-        setShowFilterBar(!!tripDestination); // True if tripDestination exists, false otherwise
+        setShowFilterBar(!!tripDestination);
       } else {
-        console.log("BLUR: Focus moved inside search/sidebar, not hiding options."); // Diagnostic log
+        console.log("BLUR: Focus moved inside search/sidebar, not hiding options.");
       }
-    }, 100); // Small delay
-  }, [tripDestination]); // Dependencies
+    }, 100);
+  }, [tripDestination]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -441,16 +447,16 @@ const MapView = () => {
   };
 
   const clearMarkers = () => {
-    console.log("CLICKED: Clear All Markers Button"); // Diagnostic log
+    console.log("CLICKED: Clear All Markers Button");
     setMarkers([]);
     localStorage.removeItem('markers');
-    setRouting(null);
-    setCustomNotification({ message: "All saved places cleared!", type: 'success' }); // ADDED CUSTOM NOTIFICATION
+    setRouting(null); // Clear any active route
+    setCustomNotification({ message: "All saved places cleared!", type: 'success' });
   };
 
-  // --- MODIFIED handleGetDirections to accept origin and destination ---
-  const handleGetDirections = useCallback((origin, destination, type) => {
-    console.log(`CLICKED: Get Directions Button from ${type} -`, { origin, destination });
+  // MODIFIED: handleGetDirections to use new routing state structure
+  const handleGetDirections = useCallback((origin, destination) => {
+    console.log(`CLICKED: Get Directions Button - From (${origin.lat}, ${origin.lng}) to (${destination.lat}, ${destination.lng})`);
 
     if (!origin) {
       setCustomNotification({ message: "Origin location is not available to get directions.", type: 'error' });
@@ -458,14 +464,13 @@ const MapView = () => {
     }
 
     setRouting({
-      from: origin,
-      to: destination
+      waypoints: [origin, destination],
+      routeType: 'single'
     });
     setIsRoutingActive(true);
   }, []);
 
   const fetchOverpassData = useCallback(async (category) => {
-    // Determine the relevant location for the Overpass API query
     const locationForSearch = tripDestination || userLocation;
     if (!locationForSearch) return [];
 
@@ -475,6 +480,8 @@ const MapView = () => {
       Gym: 'leisure=fitness_centre',
       Bank: 'amenity=bank',
       'Gas Station': 'amenity=fuel',
+      Beach: 'natural=beach',
+      'Ice Cream': 'amenity=ice_cream',
     };
 
     const tag = overpassTags[category];
@@ -512,11 +519,11 @@ const MapView = () => {
       console.error('Error fetching Overpass data:', err);
       return [];
     }
-  }, [userLocation, tripDestination]); // Added tripDestination as a dependency
+  }, [userLocation, tripDestination]);
 
   useEffect(() => {
     const fetchAllActiveCategories = async () => {
-      const locationForFilter = tripDestination || userLocation; // Prioritize tripDestination
+      const locationForFilter = tripDestination || userLocation;
       if (!locationForFilter) {
         setFetchedMarkers([]);
         return;
@@ -540,7 +547,7 @@ const MapView = () => {
   }, [fetchOverpassData, activeFilters, userLocation, tripDestination]);
 
   const toggleFilter = (cat) => {
-    console.log("CLICKED: Filter Button -", cat); // Diagnostic log
+    console.log("CLICKED: Filter Button -", cat);
     setActiveFilters((prevFilters) => {
       if (prevFilters.includes(cat)) {
         return prevFilters.filter((c) => c !== cat);
@@ -548,12 +555,11 @@ const MapView = () => {
         return [...prevFilters, cat];
       }
     });
-    setRouting(null);
+    setRouting(null); // Clear route when filters change
   };
 
-  // handleSearch function now uses nearMeSearchTerm
   const handleSearch = async () => {
-    console.log("CLICKED: Near Me Search Button"); // Diagnostic log
+    console.log("CLICKED: Near Me Search Button");
     if (!nearMeSearchTerm.trim()) {
       setCustomNotification({ message: "Please enter a place or address to search.", type: 'error' });
       return;
@@ -567,17 +573,84 @@ const MapView = () => {
 
       if (data && data.length > 0) {
         setSearchResults(data);
-        // Removed direct mapRef.current.setView here, MapPanner will handle via mapCenter
-        setMapCenter({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }); // <--- Set mapCenter on search
+        setMapCenter({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
       } else {
         setSearchResults([]);
         setCustomNotification({ message: "No results found for your search.", type: 'error' });
       }
-      // MODIFIED: Hide filter bar after search is executed
+      setRouting(null); // Clear route on new search
       setShowFilterBar(false);
     } catch (error) {
       console.error("Error during geocoding search:", error);
       setCustomNotification({ message: "Error searching for place. Please try again.", type: 'error' });
+    }
+  };
+
+  // MODIFIED: handleAISearch function for multi-stop routing
+  const handleAISearch = async () => {
+    console.log("CLICKED: AI Search Button");
+    if (!aiSearchTerm.trim()) {
+      setCustomNotification({ message: "Please enter your request for AI search.", type: 'error' });
+      return;
+    }
+
+    setIsAiSearching(true);
+    setAiSuggestedMarkers([]); // Clear previous AI suggestions
+    setRouting(null); // Clear any existing route before new AI search
+
+    const locationForSearch = userLocation; // Use userLocation as the start for multi-stop
+
+    if (!locationForSearch) {
+      setCustomNotification({ message: "Please enable location to use AI search for routes.", type: 'error' });
+      setIsAiSearching(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('http://localhost:8080/ai-search', { // Ensure this URL is correct
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: aiSearchTerm,
+          userLocation: locationForSearch
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.isMultiStopRoute && data.markers && data.markers.length > 0) {
+        // Multi-stop route found
+        const routeWaypoints = [userLocation, ...data.markers.map(m => m.position)];
+        setRouting({
+          waypoints: routeWaypoints,
+          routeType: 'multi'
+        });
+        setAiSuggestedMarkers(data.markers); // Still display the individual stops as markers
+        setMapCenter(routeWaypoints[0]); // Pan to the first waypoint (user's location)
+        setCustomNotification({ message: "AI found a multi-stop route for you!", type: 'success' });
+      } else if (data.markers && data.markers.length > 0) {
+        // Single place suggestion (fallback if backend doesn't return multi-stop)
+        setAiSuggestedMarkers(data.markers);
+        setMapCenter(data.markers[0].position);
+        setCustomNotification({ message: "AI found some suggestions for you!", type: 'success' });
+        setRouting(null); // Ensure no multi-stop route is active
+      } else {
+        setCustomNotification({ message: data.message || "AI couldn't find relevant places for your request.", type: 'error' });
+        setRouting(null); // Clear route if no places found
+      }
+
+    } catch (error) {
+      console.error("Error during AI search:", error);
+      setCustomNotification({ message: `Error during AI search: ${error.message}. Please check your backend server.`, type: 'error' });
+    } finally {
+      setIsAiSearching(false);
     }
   };
 
@@ -616,7 +689,6 @@ const MapView = () => {
     return debouncedValue;
   }
 
-  // Debounced search term for general search suggestions (using nearMeSearchTerm)
   const debouncedNearMeSearchTerm = useDebounce(nearMeSearchTerm, 300);
 
   useEffect(() => {
@@ -678,11 +750,13 @@ const MapView = () => {
   }
 
   const filteredMarkers = (() => {
-    // *** FIX: Prioritize tripDestination for filtering and distance calculation ***
     const locationToFilterBy = tripDestination || userLocation;
 
+    // Combine all marker sources
+    const allMarkers = [...markers, ...predefinedMarkers, ...fetchedMarkers, ...aiSuggestedMarkers];
+
     if (activeFilters.length === 0 || !locationToFilterBy) {
-      return [...markers, ...predefinedMarkers];
+      return allMarkers;
     }
 
     const filterAndMapMarkers = (markerArray) => {
@@ -699,24 +773,11 @@ const MapView = () => {
       );
     };
 
-    return [
-      ...filterAndMapMarkers(markers),
-      ...filterAndMapMarkers(predefinedMarkers),
-      ...fetchedMarkers.filter(
-        (marker) =>
-          getDistanceFromLatLonInKm(
-            locationToFilterBy.lat,
-            locationToFilterBy.lng,
-            marker.position.lat,
-            marker.position.lng
-          ) <= 10
-      ),
-    ];
+    return filterAndMapMarkers(allMarkers);
   })();
 
   const fetchWeather = async (lat, lng) => {
     const apiKey = '21fc67147755e1e200b36618e837e9e3'; // Replace with your actual OpenWeatherMap API Key
-    // Use the explicitly passed lat/lng first, then tripDestination, then userLocation
     const fetchLat = lat || tripDestination?.lat || userLocation?.lat;
     const fetchLng = lng || tripDestination?.lng || userLocation?.lng;
 
@@ -772,7 +833,7 @@ const MapView = () => {
   ).current;
 
   useEffect(() => {
-    const locationForWeatherUpdate = tripDestination || userLocation; // Prioritize tripDestination
+    const locationForWeatherUpdate = tripDestination || userLocation;
     if (locationForWeatherUpdate) {
       debouncedFetchWeather(locationForWeatherUpdate.lat, locationForWeatherUpdate.lng);
     }
@@ -808,64 +869,40 @@ const MapView = () => {
     };
   }, []);
 
-  // Effect to automatically clear the custom notification
   useEffect(() => {
     if (customNotification) {
       const timer = setTimeout(() => {
         setCustomNotification(null);
-      }, 3000); // Notification disappears after 3 seconds
+      }, 3000);
 
-      return () => clearTimeout(timer); // Clean up the timer
+      return () => clearTimeout(timer);
     }
   }, [customNotification]);
 
   console.log("MapView rendering");
 
   return (
-
-
-    
     <>
-
-<style>
-  
-  
-         {/* Existing styles for font-family */}
-         {`
+      <style>
+        {`
            body, html, input, button, select, div {
              font-family: 'Arial', 'Helvetica', sans-serif;
              font-size: 16px;
              color: #333;
            }
 
-           /* --- ADD THIS UNIVERSAL RESET --- */
            body, html, #root {
              margin: 0;
              padding: 0;
              width: 100%;
              height: 100%;
-             overflow: hidden; /* Prevent scrollbars from appearing due to tiny overflows */
+             overflow: hidden;
            }
-           /* -------------------------------- */
 
            .leaflet-container {
              font-family: 'Arial', 'Helvetica', sans-serif;
            }
          `}
-       </style>
-       
-      <style>
-        {`
-          body, html, input, button, select, div {
-            font-family: 'Arial', 'Helvetica', sans-serif;
-            font-size: 16px;
-            color: #333;
-          }
-
-          .leaflet-container {
-            font-family: 'Arial', 'Helvetica', sans-serif;
-          }
-        `}
       </style>
       <style>
         {`
@@ -931,12 +968,27 @@ const MapView = () => {
         `}
       </style>
 
+<style>
+  {`
+  /* NEW: CSS for bouncing dots animation */
+@keyframes bounce {
+  0%, 100% { transform: translateY(-12px); }
+  50% { transform: translateY(-17px); } /* Adjust bounce height */
+}
+.bouncing-dot {
+  display: inline-block; /* Essential for transform to work */
+  animation: bounce 0.6s infinite ease-in-out; /* Faster animation */
+  
+}
+  
+  `}
+</style>
       <style>
         {`
           @keyframes fadeSlideUp {
             0% { opacity: 0; transform: translateY(20px); }
-            10% { opacity: 1; transform: translateY(0); }
-            90% { opacity: 1; transform: translateY(0); }
+            50% { opacity: 1; transform: translateY(0); }
+            70% { transform: translateY(0); }
             100% { opacity: 0; transform: translateY(-20px); }
           }
         `}
@@ -949,21 +1001,70 @@ const MapView = () => {
         `}
       </style>
 
-      {/* NEW: Custom Notification Display */}
+      {/* NEW CSS for Tooltips */}
+      <style>
+  {`
+    .info-icon-container {
+      position: relative;
+      display: inline-flex; /* Use flex to align icon and tooltip */
+      align-items: center;
+      justify-content: center;
+    }
+
+    .info-tooltip {
+      visibility: hidden;
+      width: 250px; /* Adjust width as needed */
+      background-color: #f0f0f0; /* Changed: Lighter background */
+      color: #333; /* Changed: Darker text color */
+      text-align: center;
+      border-radius: 8px; /* Changed: Slightly more rounded corners */
+      padding: 12px; /* Changed: More padding */
+      position: absolute;
+      z-index: 1;
+      top: 125%; /* Changed: Position underneath the icon */
+      left: 50%;
+      transform: translateX(-50%);
+      opacity: 0;
+      transition: opacity 0.3s, visibility 0.3s;
+      font-size: 0.7em;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.25); /* Changed: Stronger shadow */
+      border: 1px solid #ccc; /* New: Added a subtle border */
+    }
+
+    .info-tooltip::after {
+      content: "";
+      position: absolute;
+      bottom: 100%; /* Changed: Pointing upwards from the bottom of the tooltip */
+      left: 50%;
+      margin-left: -5px;
+      border-width: 5px;
+      border-style: solid;
+      border-color: transparent transparent #ccc transparent; /* Changed: Triangle points upwards, matches border */
+      filter: drop-shadow(0 -1px 0px rgba(0,0,0,0.1)); /* Optional: Adds a subtle shadow to the arrow */
+    }
+
+    .info-icon-container:hover .info-tooltip {
+      visibility: visible;
+      opacity: 1;
+    }
+  `}
+</style>
+
+
       {customNotification && (
         <div
           style={{
             position: 'fixed',
-            top: '20px', // Adjust as needed
+            top: '20px',
             left: '50%',
             transform: 'translateX(-50%)',
-            background: customNotification.type === 'success' ? '#28a745' : '#dc3545', // Green for success, red for error/clear
+            background: customNotification.type === 'success' ? '#28a745' : '#dc3545',
             color: 'white',
             padding: '10px 20px',
             borderRadius: '8px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-            zIndex: 2000, // Make sure it's above other elements
-            animation: 'fadeInOut 3s forwards', // Use the custom animation
+            zIndex: 2000,
+            animation: 'fadeInOut 3s forwards',
             textAlign: 'center',
             minWidth: '250px',
           }}
@@ -972,7 +1073,6 @@ const MapView = () => {
         </div>
       )}
 
-      {/* NEW: CSS for fadeInOut animation */}
       <style>
         {`
           @keyframes fadeInOut {
@@ -1006,7 +1106,6 @@ const MapView = () => {
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
 
         <AnimatePresence>
-          {/* MODIFIED: Filter bar now only shows if showFilterBar is true */}
           {showFilterBar && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
@@ -1015,7 +1114,7 @@ const MapView = () => {
               transition={{ duration: 0.3 }}
               style={{
                 position: 'absolute',
-                top: showSearchOptions ? '60px' : '60px',
+                top: showSearchOptions ? '90px' : '90px',
                 left: '25%',
                 transform: 'translateX(-50%)',
                 zIndex: 1000,
@@ -1044,7 +1143,7 @@ const MapView = () => {
                     delay: i * 0.05,
                   }}
                   onClick={(e) => {
-                    e.stopPropagation(); // Stop click from propagating up
+                    e.stopPropagation();
                     toggleFilter(cat);
                   }}
                   style={{
@@ -1062,7 +1161,7 @@ const MapView = () => {
                   }}
                   title={cat}
                   aria-pressed={activeFilters.includes(cat)}
-                  type="button" // Ensure it's a button type
+                  type="button"
                 >
                   {icon} {cat}
                 </motion.button>
@@ -1071,13 +1170,12 @@ const MapView = () => {
           )}
         </AnimatePresence>
 
-        {/* --- DYNAMIC SEARCH BAR CONTAINER --- */}
         <div
           ref={searchContainerRef}
-          onBlur={handleSearchContainerBlur} 
+          onBlur={handleSearchContainerBlur}
           style={{
             position: 'absolute',
-            top: '60px', // MODIFIED: Moved the entire search bar container down
+            top: '90px',
             left: '30px',
             zIndex: 1000,
             width: '350px',
@@ -1086,11 +1184,8 @@ const MapView = () => {
             padding: '0',
             display: 'flex',
             flexDirection: 'column',
-            // gap: '10px', // Removed container gap, managing spacing inside
-
           }}
         >
-          {/* Toggle Buttons - ABSOLUTELY POSITIONED */}
           <AnimatePresence>
             {showSearchOptions && (
               <motion.div
@@ -1099,27 +1194,30 @@ const MapView = () => {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
                 style={{
-                  position: 'absolute', // MODIFIED: Absolute positioning
-                  top: '-60px', // MODIFIED: Positioned above the search input (estimate 50px for toggles + 10px gap)
+                  position: 'absolute',
+                  top: '-95px',
                   left: '0px',
                   right: '0px',
                   display: 'flex',
                   gap: '10px',
-                  justifyContent: 'center', // Center buttons horizontally
-                  background: 'transparent', // MODIFIED: Give it a background for visual separation
-                  padding: '10px 15px', // MODIFIED: Padding for buttons within this bar
-                  borderRadius: '25px', // MODIFIED: Fully rounded corners for consistency
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)', // MODIFIED: Consistent shadow
-                  boxSizing: 'border-box', // Ensure padding is included in width
+                  justifyContent: 'center',
+                  background: 'transparent',
+                  padding: '10px 15px',
+                  borderRadius: '25px',
+                  zIndex: 999, // This is lower than the info icon container's zIndex
+                  boxSizing: 'border-box',
                 }}
               >
                 <button
                   onClick={(e) => {
-                    e.stopPropagation(); // Stop click from propagating up
-                    console.log("CLICKED: Search Near Me Toggle"); // Diagnostic log
+                    e.stopPropagation();
+                    console.log("CLICKED: Search Near Me Toggle");
                     setCurrentSearchType('nearMe');
                     setDestinationSearchTerm('');
                     setDestinationSuggestions([]);
+                    setAiSearchTerm('');
+                    setAiSuggestedMarkers([]);
+                    setRouting(null); // Clear route when switching search type
                     setShowFilterBar(true);
                   }}
                   style={{
@@ -1133,17 +1231,20 @@ const MapView = () => {
                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                     transition: 'all 0.2s ease',
                   }}
-                  type="button" // Ensure it's a button type
+                  type="button"
                 >
                   Search Near Me
                 </button>
                 <button
                   onClick={(e) => {
-                    e.stopPropagation(); // Stop click from propagating up
-                    console.log("CLICKED: Trip Destination Toggle"); // Diagnostic log
+                    e.stopPropagation();
+                    console.log("CLICKED: Trip Destination Toggle");
                     setCurrentSearchType('destination');
                     setNearMeSearchTerm('');
                     setSuggestions([]);
+                    setAiSearchTerm('');
+                    setAiSuggestedMarkers([]);
+                    setRouting(null); // Clear route when switching search type
                     setShowFilterBar(true);
                   }}
                   style={{
@@ -1157,17 +1258,43 @@ const MapView = () => {
                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                     transition: 'all 0.2s ease',
                   }}
-                  type="button" // Ensure it's a button type
+                  type="button"
                 >
                   Trip Destination
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log("CLICKED: AI Search Toggle");
+                    setCurrentSearchType('aiSearch');
+                    setNearMeSearchTerm('');
+                    setSuggestions([]);
+                    setDestinationSearchTerm('');
+                    setDestinationSuggestions([]);
+                    setRouting(null); // Clear route when switching search type
+                    setShowFilterBar(false);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '10px 15px',
+                    borderRadius: '25px',
+                    border: currentSearchType === 'aiSearch' ? '2px solid #00a86b' : '1px solid #ccc',
+                    background: currentSearchType === 'aiSearch' ? '#e6fff0' : 'white',
+                    cursor: 'pointer',
+                    fontWeight: currentSearchType === 'aiSearch' ? 'bold' : 'normal',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    transition: 'all 0.2s ease',
+                  }}
+                  type="button"
+                >
+                  AI Search
                 </button>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Search Near Me Input & Suggestions */}
           {currentSearchType === 'nearMe' && (
-            <div style={{ position: 'relative', width: '100%', marginTop: '0px' }}> {/* MODIFIED: Removed margin-top */}
+            <div style={{ position: 'relative', width: '100%', marginTop: '0px' }}>
               <input
                 type="text"
                 placeholder="Search Near Me"
@@ -1176,13 +1303,13 @@ const MapView = () => {
                   setNearMeSearchTerm(e.target.value);
                 }}
                 onFocus={() => {
-                  console.log("FOCUS: Near Me Search Input"); // Diagnostic log
-                  setShowSearchOptions(true); // Show options when this input is focused
+                  console.log("FOCUS: Near Me Search Input");
+                  setShowSearchOptions(true);
                   setShowFilterBar(true);
                 }}
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
-                    console.log("KEYPRESS ENTER: Near Me Search Input"); // Diagnostic log
+                    console.log("KEYPRESS ENTER: Near Me Search Input");
                     handleSearch();
                     setShowFilterBar(false);
                     setSuggestions([]);
@@ -1192,7 +1319,7 @@ const MapView = () => {
                 style={{
                   width: '100%',
                   padding: '17px 45px 17px 15px',
-                  borderRadius: '25px', // MODIFIED: Always fully rounded
+                  borderRadius: '25px',
                   border: '1px solid #ccc',
                   fontSize: '0.9em',
                   boxSizing: 'border-box',
@@ -1200,20 +1327,11 @@ const MapView = () => {
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   cursor: 'text',
-                  background: 'white', // MODIFIED: Ensure input has a background
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)', // MODIFIED: Consistent shadow
-                  
+                  background: 'white',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                 }}
               />
-              <button
-                onClick={(e) => {
-                  e.stopPropagation(); // Stop click from propagating up
-                  console.log("CLICKED: Near Me Search Magnifying Glass"); // Diagnostic log
-                  handleSearch();
-                  setShowFilterBar(false);
-                  setSuggestions([]);
-                  setShowSearchOptions(false);
-                }}
+              <div className="info-icon-container"
                 style={{
                   position: 'absolute',
                   right: '15px',
@@ -1225,21 +1343,43 @@ const MapView = () => {
                   fontSize: '1.4em',
                   cursor: 'pointer',
                   zIndex: 1,
-                  display: 'flex', // Ensures content is centered
+                  display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
-                aria-label="Search"
-                type="button" // Ensure it's a button type
               >
-                🔍
-              </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log("CLICKED: Near Me Search Info Button");
+                    // No action on click, just for hover
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#888',
+                    fontSize: '1.4em',
+                    cursor: 'default', // Change cursor to default to indicate no click action
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  aria-label="Information about Near Me Search"
+                  type="button"
+                >
+                  <img src={infoIcon} alt="info" style={{ width: '20px', height: '20px' }} /> {/* Changed to image */}
+                </button>
+                <div className="info-tooltip">
+                  Search for places near your current location.
+                </div>
+              </div>
+
 
               {suggestions.length > 0 && (
                 <div
                   style={{
                     position: 'absolute',
-                    top: '100%', // MODIFIED: Position immediately below the input
+                    top: '100%',
                     left: '0%',
                     width: '100%',
                     background: '#fff',
@@ -1258,13 +1398,12 @@ const MapView = () => {
                       <div
                         key={result.place_id}
                         onClick={(e) => {
-                          e.stopPropagation(); // VERY IMPORTANT: Stop click from bubbling up to parent div
-                          console.log("CLICKED: Near Me Suggestion Item -", result.display_name); // Diagnostic log
-                          // This click should still center the map on the suggestion
+                          e.stopPropagation();
+                          console.log("CLICKED: Near Me Suggestion Item -", result.display_name);
                           setMapCenter(latlng);
-                          setNearMeSearchTerm(result.name || result.display_name.split(',')[0]); // Fill input with selected suggestion
-                          setSuggestions([]); // Clear suggestions
-                          setShowSearchOptions(false); // Hide the search options dropdown
+                          setNearMeSearchTerm(result.name || result.display_name.split(',')[0]);
+                          setSuggestions([]);
+                          setShowSearchOptions(false);
                           setShowFilterBar(false);
                         }}
                         style={{
@@ -1289,16 +1428,15 @@ const MapView = () => {
                         >
                           {result.display_name}
                         </div>
-                        {/* REPLACE THE EXISTING BUTTON HERE WITH THE FOLLOWING */}
                         <button
                           onClick={(e) => {
-                            e.stopPropagation(); // VERY IMPORTANT: Stop click from bubbling up to parent div
-                            console.log("CLICKED: Save Place from Near Me Suggestion"); // Diagnostic log
+                            e.stopPropagation();
+                            console.log("CLICKED: Save Place from Near Me Suggestion");
                             const newSavedMarker = {
-                              id: uuidv4(), // Generate a new unique ID for this saved place
+                              id: uuidv4(),
                               position: latlng,
                               name: result.name || result.display_name.split(',')[0],
-                              category: 'Other', // Default category for user-saved places
+                              category: 'Other',
                               address: result.display_name,
                             };
 
@@ -1306,10 +1444,8 @@ const MapView = () => {
                             setMarkers(updatedMarkers);
                             localStorage.setItem('markers', JSON.stringify(updatedMarkers));
 
-                            // Show a custom notification that the place was saved
                             setCustomNotification({ message: `Saved: ${newSavedMarker.name}`, type: 'success' });
 
-                            // Clear the search input and suggestions after saving
                             setNearMeSearchTerm('');
                             setSuggestions([]);
                             setShowSearchOptions(false);
@@ -1325,7 +1461,7 @@ const MapView = () => {
                             fontSize: '0.8em',
                             cursor: 'pointer',
                           }}
-                          type="button" // Ensure it's a button type
+                          type="button"
                         >
                           Save Place
                         </button>
@@ -1337,22 +1473,21 @@ const MapView = () => {
             </div>
           )}
 
-          {/* Trip Destination Input & Suggestions */}
           {currentSearchType === 'destination' && (
-            <div style={{ position: 'relative', width: '100%', marginTop: '0px' }}> {/* MODIFIED: Removed margin-top */}
+            <div style={{ position: 'relative', width: '100%', marginTop: '0px' }}>
               <input
                 type="text"
                 placeholder="Search for Trip Destination"
                 value={destinationSearchTerm}
                 onChange={(e) => setDestinationSearchTerm(e.target.value)}
                 onFocus={() => {
-                  console.log("FOCUS: Trip Destination Search Input"); // Diagnostic log
+                  console.log("FOCUS: Trip Destination Search Input");
                   setShowSearchOptions(true);
                   setShowFilterBar(true);
-                }} // Show options on focus
+                }}
                 onKeyPress={(e) => {
                   if (e.key === 'Enter' && destinationSuggestions.length > 0) {
-                    console.log("KEYPRESS ENTER: Trip Destination Search Input"); // Diagnostic log
+                    console.log("KEYPRESS ENTER: Trip Destination Search Input");
                     const firstResult = destinationSuggestions[0];
                     const latlng = { lat: parseFloat(firstResult.lat), lng: parseFloat(firstResult.lon) };
                     setTripDestination(latlng);
@@ -1362,61 +1497,68 @@ const MapView = () => {
                     setMapCenter(latlng);
                     setShowSearchOptions(false);
                     setShowFilterBar(true);
+                    setRouting(null); // Clear route on new destination
                   }
                 }}
                 style={{
                   width: '100%',
                   padding: '17px 45px 17px 15px',
-                  borderRadius: '25px', // MODIFIED: Always fully rounded
+                  borderRadius: '25px',
                   border: '1px solid #6f42c1',
                   fontSize: '0.9em',
                   boxSizing: 'border-box',
-                  background: 'white', // MODIFIED: Ensure input has a background
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)', // MODIFIED: Consistent shadow
+                  background: 'white',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                 }}
               />
-              <button
-                onClick={(e) => {
-                  e.stopPropagation(); // Stop click from propagating up
-                  console.log("CLICKED: Trip Destination Search Magnifying Glass"); // Diagnostic log
-                  if (destinationSuggestions.length > 0) {
-                    const firstResult = destinationSuggestions[0];
-                    const latlng = { lat: parseFloat(firstResult.lat), lng: parseFloat(firstResult.lon) };
-                    setTripDestination(latlng);
-                    setDestinationSearchTerm('');
-                    setDestinationSuggestions([]);
-                    setCustomNotification({ message: `Trip destination set to: ${firstResult.name || firstResult.display_name.split(',')[0]}`, type: 'success' });
-                    setMapCenter(latlng);
-                    setShowSearchOptions(false);
-                    setShowFilterBar(true);
-                  }
-                }}
+              <div className="info-icon-container"
                 style={{
                   position: 'absolute',
                   right: '15px',
-                  top: '11.5px',
+                  top: '16px',
                   background: 'transparent',
                   border: 'none',
                   color: '#6f42c1',
                   fontSize: '1.4em',
                   cursor: 'pointer',
                   zIndex: 1,
-                  display: 'flex', // Ensures content is centered
+                  display: 'flex',
                   alignItems: 'center',
-                  
                   justifyContent: 'center',
                 }}
-                aria-label="Search Destination"
-                type="button" // Ensure it's a button type
               >
-                🔍
-              </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log("CLICKED: Trip Destination Search Info Button");
+                    // No action on click, just for hover
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#6f42c1',
+                    fontSize: '1.4em',
+                    cursor: 'default', // Change cursor to default to indicate no click action
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  aria-label="Information about Trip Destination Search"
+                  type="button"
+                >
+                  <img src={infoIcon} alt="info" style={{ width: '20px', height: '20px' }} /> {/* Changed to image */}
+                </button>
+                <div className="info-tooltip">
+                  Set a destination for your trip. Now, all results searched and found will be near this new destination. 
+                </div>
+              </div>
+
 
               {destinationSuggestions.length > 0 && (
                 <div
                   style={{
                     position: 'absolute',
-                    top: '100%', // MODIFIED: Position immediately below the input
+                    top: '100%',
                     left: '0%',
                     width: '100%',
                     background: '#fff',
@@ -1435,7 +1577,7 @@ const MapView = () => {
                       <div
                         key={result.place_id}
                         onClick={(e) => {
-                          e.stopPropagation(); // Stop click from propagating up
+                          e.stopPropagation();
                           setTripDestination(latlng);
                           setDestinationSearchTerm('');
                           setDestinationSuggestions([]);
@@ -1443,6 +1585,7 @@ const MapView = () => {
                           setMapCenter(latlng);
                           setShowSearchOptions(false);
                           setShowFilterBar(true);
+                          setRouting(null); // Clear route on new destination
                         }}
                         style={{
                           padding: '10px',
@@ -1462,22 +1605,20 @@ const MapView = () => {
               {tripDestination && (
                 <button
                   onClick={(e) => {
-                    e.stopPropagation(); // Stop click from propagating up
-                    console.log("CLICKED: Clear Trip Destination Button"); // Diagnostic log
+                    e.stopPropagation();
+                    console.log("CLICKED: Clear Trip Destination Button");
                     setTripDestination(null);
                     setFetchedMarkers([]);
-                    setRouting(null);
+                    setRouting(null); // Clear route when destination is cleared
                     setCustomNotification({ message: "Trip destination cleared!", type: 'success' });
                     setShowSearchOptions(false);
-                    // --- MODIFIED LOGIC HERE ---
                     if (userLocation) {
-                      setMapCenter(userLocation); // Set map center back to user's location
+                      setMapCenter(userLocation);
                       setShowFilterBar(false);
                     } else {
                       setCustomNotification({ message: "Your location is not available to pan back to.", type: 'error' });
                       setShowFilterBar(false);
                     }
-                    // --- END MODIFICATION ---
                   }}
                   style={{
                     marginTop: '10px',
@@ -1492,10 +1633,166 @@ const MapView = () => {
                     transition: 'all 0.2s ease',
                   }}
                   title="Clear the current trip destination"
-                  type="button" // Ensure it's a button type
+                  type="button"
                 >
                   Clear Trip Destination
                 </button>
+              )}
+            </div>
+          )}
+
+          {currentSearchType === 'aiSearch' && (
+            <div style={{ position: 'relative', width: '100%', marginTop: '0px' }}>
+              <input
+                type="text"
+                placeholder="Ask Near Me AI"
+                value={aiSearchTerm}
+                onChange={(e) => setAiSearchTerm(e.target.value)}
+                onFocus={() => {
+                  console.log("FOCUS: AI Search Input");
+                  setShowSearchOptions(true);
+                  setShowFilterBar(false);
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    console.log("KEYPRESS ENTER: AI Search Input");
+                    handleAISearch();
+                    setShowSearchOptions(false);
+                    setAiSuggestedMarkers([]); 
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '17px 45px 17px 15px',
+                  borderRadius: '25px',
+                  border: '1px solid #00a86b',
+                  fontSize: '0.9em',
+                  boxSizing: 'border-box',
+                  background: 'white',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                }}
+                disabled={isAiSearching}
+              />
+              <div className="info-icon-container"
+                style={{
+                  position: 'absolute',
+                  right: '15px',
+                  top: '16px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#00a86b',
+                  fontSize: '1.4em',
+                  cursor: 'pointer',
+                  zIndex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                
+              >
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log("CLICKED: AI Search Info Button");
+                    // No action on click, just for hover
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#00a86b',
+                    fontSize: '1.4em',
+                    cursor: 'default', // Change cursor to default to indicate no click action
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  aria-label="Information about AI Search"
+                  type="button"
+                  disabled={isAiSearching}
+                >
+{isAiSearching ? (
+                     <span style={{ display: 'flex', alignItems: 'flex-end', height: '1em' }}>
+                       <span className="bouncing-dot" style={{ animationDelay: '0s' }}>.</span>
+                       <span className="bouncing-dot" style={{ animationDelay: '0.1s' }}>.</span>
+                       <span className="bouncing-dot" style={{ animationDelay: '0.2s' }}>.</span>
+                     </span>
+                   ) : <img src={infoIcon} alt="info" style={{ width: '20px', height: '20px' }} />}
+                </button>
+                <div className="info-tooltip">
+                  Ask AI to find places or multi-stop routes based off your current location. Example: "I want to get fast food, then hit the gym." The AI will find the nearest fast food and gym to your location and create a multi-stop route.
+                </div>
+              </div>
+
+
+              {aiSuggestedMarkers.length > 0 && (
+                <div
+                  style={{
+                    marginTop: '10px',
+                    padding: '10px 15px',
+                    borderRadius: '15px',
+                    border: '1px solidrgb(157, 203, 186)',
+                    background: '#F0FFF0',
+                    color: '#00563b',
+                    fontSize: '1em',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  }}
+                >
+                  <strong>AI Suggested Route:</strong>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: '5px 0 0 0' }}>
+                    {aiSuggestedMarkers.map((marker, index) => (
+                      <li key={marker.id} style={{ marginBottom: '5px' }}>
+                        {index + 1}. {marker.name} ({marker.type})
+                        
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const newSavedMarker = {
+                              id: uuidv4(),
+                              position: marker.position,
+                              name: marker.name,
+                              category: marker.category,
+                              address: marker.address,
+                            };
+                            const updatedMarkers = [...markers, newSavedMarker];
+                            setMarkers(updatedMarkers);
+                            localStorage.setItem('markers', JSON.stringify(updatedMarkers));
+                            setCustomNotification({ message: `Saved: ${newSavedMarker.name}`, type: 'success' });
+                          }}
+                          style={{
+                            marginLeft: '5px',
+                            padding: '4px 10px',
+                            background: '#28a745',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '5px',
+                            cursor: 'pointer',
+                            fontSize: '0.85em',
+                          }}
+                        >
+                          Save
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    onClick={() => {
+                      setAiSuggestedMarkers([]);
+                      setRouting(null); // Clear route when clearing AI suggestions
+                    }}
+                    style={{
+                      marginTop: '10px',
+                      padding: '6px 12px',
+                      background: '#dc3545',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: 'pointer',
+                      fontSize: '0.9em',
+                    }}
+                  >
+                    Clear AI Suggestions
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -1521,7 +1818,7 @@ const MapView = () => {
             >
               <button
                 onClick={(e) => {
-                  e.stopPropagation(); // Diagnostic log
+                  e.stopPropagation();
                   console.log("CLICKED: Close Add New Place Form Button");
                   setShowForm(false);
                   setNewMarkerPosition(null);
@@ -1540,7 +1837,7 @@ const MapView = () => {
                   color: '#333',
                 }}
                 aria-label="Close form"
-                type="button" // Ensure it's a button type
+                type="button"
               >
                 ×
               </button>
@@ -1603,16 +1900,12 @@ const MapView = () => {
           }}>
             {!showSidebar && (
               <button
-
-                onClick={(e) => { // Ensure this is a block with curly braces if you're adding more than one statement
-                  e.stopPropagation(); // <--- ADD THIS LINE
-                  console.log("Sidebar button clicked! Setting showSidebar to true."); // <-- ADD THIS LINE
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log("Sidebar button clicked! Setting showSidebar to true.");
                   setShowSidebar(true);
-                  // MODIFIED: Hide filter bar if sidebar is opened and no search input is focused
-                  // The blur handler would normally handle this, but an explicit click on sidebar toggle
-                  // implies disengaging with search
                   if (!searchContainerRef.current.contains(document.activeElement)) {
-                    setShowFilterBar(!!tripDestination); // Maintain filter visibility if tripDestination is set
+                    setShowFilterBar(!!tripDestination);
                   }
                 }}
                 style={{
@@ -1629,8 +1922,8 @@ const MapView = () => {
                 onMouseEnter={(e) => e.currentTarget.style.background = '#f0f0f0'}
                 onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
                 aria-label="Open Sidebar"
-                id="sidebar-toggle-button" // <--- ADD THIS ID
-                type="button" // Ensure it's a button type
+                id="sidebar-toggle-button"
+                type="button"
               >
                 ☰ Saved Places
               </button>
@@ -1638,10 +1931,8 @@ const MapView = () => {
           </div>
 
 
-          {/* THE ACTUAL SIDEBAR COMPONENT (WAS showFilterBar, NOW showSidebar) */}
           <AnimatePresence>
             {showSidebar && (
-              // --- START MODIFICATION (Sidebar motion.div style) ---
               <motion.div
                 key="sidebar"
                 initial={{ x: '100%' }}
@@ -1661,8 +1952,6 @@ const MapView = () => {
                   overflowY: 'auto',
                 }}
               >
-              {/* --- END MODIFICATION (Sidebar motion.div style) --- */}
-                {/* --- START MODIFICATION (Sidebar Close Button) --- */}
                 <span
                   onClick={() => setShowSidebar(false)}
                   style={{
@@ -1690,104 +1979,94 @@ const MapView = () => {
                 >
                   ←
                 </span>
-                {/* --- END MODIFICATION (Sidebar Close Button) --- */}
-                {/* Saved Markers List */}
-                {/* --- START MODIFICATION (Saved Places Title) --- */}
-<h3
-  style={{
-    marginTop: '20px',
-    marginBottom: '15px',
-    fontSize: '1.8rem', /* Larger font size */
-    textAlign: 'center', /* Centered text */
-    borderBottom: '1px solid #ccc', /* Thin horizontal line */
-    paddingBottom: '10px', /* Space between text and line */
-  }}
->
-  Saved Places
-</h3>
-{/* --- END MODIFICATION (Saved Places Title) --- */}
+                <h3
+                  style={{
+                    marginTop: '20px',
+                    marginBottom: '15px',
+                    fontSize: '1.8rem',
+                    textAlign: 'center',
+                    borderBottom: '1px solid #ccc',
+                    paddingBottom: '10px',
+                  }}
+                >
+                  Saved Places
+                </h3>
                 {markers.length === 0 ? (
                   <p>No saved places yet. Add some from the map!</p>
                 ) : (
                   <ul style={{ listStyle: 'none', padding: 0 }}>
                     {markers.map((marker) => (
                       <li key={marker.id} style={{ marginBottom: '10px', padding: '10px', background: '#f9f9f9', borderRadius: '5px' }}>
-  <div> {/* Wrap name, category, and address in a div for better layout */}
-    <strong style={{ display: 'block', marginBottom: '5px' }}>{marker.name}</strong>
-    {/* --- START MODIFICATION (Add Category Display) --- */}
-    {marker.category && (
-      <span style={{ fontSize: '0.9em', color: '#black', display: 'block', marginTop: '3px' }}>
-        Category: {marker.category}
-      </span>
-    )}
-    {/* --- END MODIFICATION (Add Category Display) --- */}
-    <span style={{ fontSize: '0.85em', color: '#666' }}>{marker.address}</span>
-  </div>
-  <div style={{ marginTop: '10px', display: 'flex', gap: '5px' }}>
-    <button
-      onClick={(e) => {
-        e.stopPropagation(); // Stop click from propagating up
-        console.log("CLICKED: Sidebar Delete Marker Button -", marker.name); // Diagnostic log
-        handleDeleteMarker(marker.id);
-      }}
-      style={{
-        padding: '5px 10px',
-        fontSize: '0.8em',
-        background: '#dc3545',
-        color: 'white',
-        border: 'none',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        transition: 'background-color 0.2s ease, transform 0.2s ease', // Add transition for smooth hover
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = '#c82333';
-        e.currentTarget.style.transform = 'scale(1.02)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = '#dc3545';
-        e.currentTarget.style.transform = 'scale(1)';
-      }}
-      type="button" // Ensure it's a button type
-    >
-      Delete
-    </button>
-  </div>
-</li>
+                        <div>
+                          <strong style={{ display: 'block', marginBottom: '5px' }}>{marker.name}</strong>
+                          {marker.category && (
+                            <span style={{ fontSize: '0.9em', color: '#black', display: 'block', marginTop: '3px' }}>
+                              Category: {marker.category}
+                            </span>
+                          )}
+                          <span style={{ fontSize: '0.85em', color: '#666' }}>{marker.address}</span>
+                        </div>
+                        <div style={{ marginTop: '10px', display: 'flex', gap: '5px' }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              console.log("CLICKED: Sidebar Delete Marker Button -", marker.name);
+                              handleDeleteMarker(marker.id);
+                            }}
+                            style={{
+                              padding: '5px 10px',
+                              fontSize: '0.8em',
+                              background: '#dc3545',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              transition: 'background-color 0.2s ease, transform 0.2s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = '#c82333';
+                              e.currentTarget.style.transform = 'scale(1.02)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = '#dc3545';
+                              e.currentTarget.style.transform = 'scale(1)';
+                            }}
+                            type="button"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </li>
                     ))}
                   </ul>
                 )}
-                {/* Clear All Markers button inside sidebar */}
                 {markers.length > 0 && (
                   <button
                     onClick={(e) => {
-                      e.stopPropagation(); // Stop click from propagating up
-                      clearMarkers(); // Calls the function that clears markers and logs
+                      e.stopPropagation();
+                      clearMarkers();
                     }}
                     style={{
                       marginTop: '1rem',
-    padding: '0.5rem 0.8rem',
-    background: '#dc3545',
-    color: 'white',
-    border: 'none',
-    borderRadius: '20px',
-    cursor: 'pointer',
-    width: '100%',
-    fontSize: '0.9rem',
-    transition: 'background 0.3s ease, transform 0.2s ease',
-                      }}
-  onMouseEnter={(e) => {
-    e.currentTarget.style.background = '#c82333'; 
-    e.currentTarget.style.transform = 'scale(1.02)';
-  }}
-  onMouseLeave={(e) => {
-    e.currentTarget.style.background = '#dc3545';
-    e.currentTarget.style.transform = 'scale(1)';
-  
+                      padding: '0.5rem 0.8rem',
+                      background: '#dc3545',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '20px',
+                      cursor: 'pointer',
+                      width: '100%',
+                      fontSize: '0.9rem',
+                      transition: 'background 0.3s ease, transform 0.2s ease',
                     }}
-                    
-                    type="button" // Ensure it's a button type
-                    
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#c82333';
+                      e.currentTarget.style.transform = 'scale(1.02)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#dc3545';
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                    type="button"
                   >
                     Clear All Saved Places
                   </button>
@@ -1801,10 +2080,9 @@ const MapView = () => {
             center={[43.68, -79.76]}
             zoom={12}
             style={{ width: '100%', height: '100%' }}
-            attributionControl={false} // Add this line to remove the "Leaflet" attribution
+            attributionControl={false}
             whenCreated={(mapInstance) => {
               mapRef.current = mapInstance;
-              // Add a click handler to the map container itself for general debugging
               mapInstance.on('click', (e) => {
                 console.log("CLICKED: Map Background (Lat:", e.latlng.lat.toFixed(4), "Lng:", e.latlng.lng.toFixed(4), ")");
                 setShowFilterBar(!!tripDestination);
@@ -1815,24 +2093,28 @@ const MapView = () => {
           >
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution="" // This will remove both "Leaflet" and "OpenStreetMap contributors"
+              attribution=""
             />
 
             <LocateUser
               onLocate={setUserLocation}
               setShowUserPopup={setShowUserPopup}
               setMapCenter={setMapCenter}
+              setCustomNotification={setCustomNotification}
             />
 
             <MapPanner targetPosition={mapCenter} />
 
-            {routing && <RoutingMachine from={routing.from} to={routing.to} routingStateSetter={setIsRoutingActive} />}
+            {/* MODIFIED: Conditional rendering for RoutingMachine based on routing state */}
+            {routing && routing.waypoints && routing.waypoints.length >= 2 && (
+              <RoutingMachine waypoints={routing.waypoints} routingStateSetter={setIsRoutingActive} />
+            )}
 
 
             {filteredMarkers.map((marker) => {
               const isFetched = marker.id.startsWith('osm-');
+              const isAISuggested = marker.id.startsWith('ai-');
 
-              // *** FIX: Prioritize tripDestination for distance calculation in Popups ***
               const locationForDistance = tripDestination || userLocation;
 
               const distance = locationForDistance
@@ -1858,7 +2140,6 @@ const MapView = () => {
                     {distance && (
                       <>
                         <br />
-                        {/* *** FIX: Dynamically show "from your location" or "from trip destination" *** */}
                         <strong>Distance:</strong> {distance} km from {tripDestination ? 'your trip destination' : 'your current location'}
                       </>
                     )}
@@ -1867,8 +2148,8 @@ const MapView = () => {
                     {userLocation && (
                       <button
                         onClick={(e) => {
-                          e.stopPropagation(); // Stop click from propagating up
-                          handleGetDirections(userLocation, marker.position, "Your Location"); // Pass userLocation as origin
+                          e.stopPropagation();
+                          handleGetDirections(userLocation, marker.position); // Removed 'type' param
                         }}
                         style={{
                           marginTop: '0.5rem',
@@ -1890,23 +2171,22 @@ const MapView = () => {
                           e.currentTarget.style.background = '#007bff';
                           e.currentTarget.style.transform = 'scale(1)';
                         }}
-                        type="button" // Ensure it's a button type
+                        type="button"
                       >
                         Get Directions From My Location
                       </button>
                     )}
 
-                    {/* NEW BUTTON: Get Directions From Trip Destination */}
                     {tripDestination && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleGetDirections(tripDestination, marker.position, "Trip Destination"); // *** NEW CALL ***
+                          handleGetDirections(tripDestination, marker.position); // Removed 'type' param
                         }}
                         style={{
                           marginTop: '0.5rem',
                           padding: '0.3rem 0.6rem',
-                          background: '#6f42c1', // A distinct color for trip destination directions
+                          background: '#6f42c1',
                           color: 'white',
                           border: 'none',
                           borderRadius: '5px',
@@ -1930,14 +2210,13 @@ const MapView = () => {
                     )}
 
 
-                    {isFetched && !alreadySaved && (
+                    {(isFetched || isAISuggested) && !alreadySaved && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          console.log("CLICKED: Save Place from Fetched Marker Popup"); // Diagnostic log
+                          console.log("CLICKED: Save Place from Fetched/AI Marker Popup");
 
                           const newSaved = {
-                            // Ensure unique ID if original marker.id is not unique enough
                             id: marker.id ? `${marker.id}-${uuidv4()}` : uuidv4(),
                             position: marker.position,
                             name: marker.name,
@@ -1949,14 +2228,14 @@ const MapView = () => {
                           setMarkers(updated);
                           localStorage.setItem('markers', JSON.stringify(updated));
 
-                          // Show a custom notification that the place was saved
                           setCustomNotification({ message: `Saved: ${newSaved.name}`, type: 'success' });
 
-                          // Clear the search input and suggestions after saving
                           setNearMeSearchTerm('');
                           setSuggestions([]);
                           setShowSearchOptions(false);
                           setShowFilterBar(false);
+                          setAiSuggestedMarkers([]);
+                          setRouting(null); // Clear route when saving a marker
                         }}
                         style={{
                           marginTop: '0.5rem',
@@ -1978,7 +2257,7 @@ const MapView = () => {
                           e.currentTarget.style.background = '#28a745';
                           e.currentTarget.style.transform = 'scale(1)';
                         }}
-                        type="button" // Ensure it's a button type
+                        type="button"
                       >
                         Save Place
                       </button>
@@ -2011,7 +2290,7 @@ const MapView = () => {
                           e.currentTarget.style.background = '#dc3545';
                           e.currentTarget.style.transform = 'scale(1)';
                         }}
-                        type="button" // Ensure it's a button type
+                        type="button"
                       >
                         Delete
                       </button>
@@ -2028,8 +2307,8 @@ const MapView = () => {
                 position={userLocation}
                 icon={userIcon}
                 eventHandlers={{
-                  click: (e) => { // Added e here
-                    console.log("CLICKED: User Location Marker"); // Diagnostic log
+                  click: (e) => {
+                    console.log("CLICKED: User Location Marker");
                     setShowUserPopup(true);
                   }
                 }}
@@ -2042,12 +2321,11 @@ const MapView = () => {
               </Marker>
             )}
 
-            {/* TRIP DESTINATION MARKER - NOW USING uniqueTripDestinationIcon */}
             {tripDestination && (
               <Marker position={tripDestination} icon={uniqueTripDestinationIcon}>
                 <Popup>
                   <strong>Your Trip Destination</strong>
-                  
+
                 </Popup>
               </Marker>
             )}
@@ -2071,7 +2349,7 @@ const MapView = () => {
                 }}
                 onMouseEnter={() => setShowWeatherDetailsHover(true)}
                 onMouseLeave={() => setShowWeatherDetailsHover(false)}
-                onClick={() => console.log("CLICKED: Weather Info Bar")} // Diagnostic log
+                onClick={() => console.log("CLICKED: Weather Info Bar")}
               >
                 <img
                   src={`http://openweathermap.org/img/wn/${weatherData.weather[0].icon}@2x.png`}
