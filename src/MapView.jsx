@@ -603,7 +603,7 @@ const MapView = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:8080/ai-search', { // Ensure this URL is correct
+      const response = await fetch(`${API_URL}/ai-search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
