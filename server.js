@@ -9,8 +9,10 @@ const axios = require('axios');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:3000'; // Default to localhost for local dev
+
 const corsOptions = {
-  origin: 'http://localhost:3000',
+  origin: allowedOrigin,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
