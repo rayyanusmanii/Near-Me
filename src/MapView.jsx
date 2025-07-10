@@ -334,6 +334,10 @@ const MapView = () => {
   const [aiSearchTerm, setAiSearchTerm] = useState('');
   const [aiSuggestedMarkers, setAiSuggestedMarkers] = useState([]);
   const [isAiSearching, setIsAiSearching] = useState(false);
+  const API_URL = process.env.REACT_APP_API_URL;
+
+
+
   // State for showing info tooltips
 
 
@@ -487,22 +491,14 @@ const MapView = () => {
     const tag = overpassTags[category];
     if (!tag) return [];
 
-    const radius = 10000;
-    const query = `
-      [out:json][timeout:25];
-      (
-        node[${tag}](around:${radius},${locationForSearch.lat},${locationForSearch.lng});
-        way[${tag}](around:${radius},${locationForSearch.lat},${locationForSearch.lng});
-        relation[${tag}](around:${radius},${locationForSearch.lat},${locationForSearch.lng});
-      );
-      out center;
-    `;
-
+  
+    
     try {
-      const response = await fetch('https://overpass-api.de/api/interpreter', {
-        method: 'POST',
-        body: query,
-      });
+    const response = await fetch(`${API_URL}/ai-search`, { // <<< THIS IS THE CRITICAL CHANGE
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', },
+    body: JSON.stringify({ query: aiSearchTerm, userLocation: locationForSearch }),
+});
       const data = await response.json();
 
       return data.elements.map((el) => ({
@@ -519,7 +515,7 @@ const MapView = () => {
       console.error('Error fetching Overpass data:', err);
       return [];
     }
-  }, [userLocation, tripDestination]);
+  }, [userLocation, tripDestination, aiSearchTerm, API_URL]);
 
   useEffect(() => {
     const fetchAllActiveCategories = async () => {
