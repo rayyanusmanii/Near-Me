@@ -644,7 +644,7 @@ const MapView = () => {
 
     } catch (error) {
       console.error("Error during AI search:", error);
-      setCustomNotification({ message: `Error during AI search: ${error.message}. Please check your backend server.`, type: 'error' });
+      setCustomNotification({ message: `Error during AI search: ${error.message}. If this was your first request of the day, it's likely that the server had to cold start and was unable to process it. Please try again.`, type: 'error' });
     } finally {
       setIsAiSearching(false);
     }
