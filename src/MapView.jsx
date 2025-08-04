@@ -13,23 +13,24 @@ import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
 import 'leaflet-control-geocoder/dist/Control.Geocoder.css';
 import 'leaflet-control-geocoder';
 import { motion, AnimatePresence } from 'framer-motion';
-import pinIcon from './assets/pin.png'; // Ensure this path is correct
+import pinIcon from './assets/pin.png'; 
 import { debounce } from 'lodash';
-import infoIcon from './assets/info.png'; // New import for the information icon
+import infoIcon from './assets/info.png'; 
 
 
-// MapPanner Component: Responsible for panning the map when targetPosition changes
+// updates the map's view when targetPosition changes in order to keep the MapView cleaner
 function MapPanner({ targetPosition }) {
   const map = useMap();
 
   useEffect(() => {
+    // so this will only run when targetPosition changes
+
     if (targetPosition) {
       const currentCenter = map.getCenter();
       const distance = currentCenter.distanceTo(targetPosition);
 
-      // Only pan if the distance is significant or zoom level is different
-      // This prevents constant re-panning for tiny shifts
-      if (distance > 10 || map.getZoom() !== 12) { // You can adjust the '10' for sensitivity
+      // preventing unneccesary re-renders for small movements
+      if (distance > 10 || map.getZoom() !== 12) { 
         map.setView(targetPosition, 12);
       }
     }
@@ -38,8 +39,10 @@ function MapPanner({ targetPosition }) {
   return null;
 }
 
-// Custom icon for the user's current location
-const userIcon = new L.Icon({
+// creating custom icons for each category for better user experience
+
+// icon for user's current location
+const userIcon = new L.Icon({ // L.icons were used instead of the default markers so that custom imgs could be used as the marker icons
   iconUrl: pinIcon,
   iconSize: [45, 45],
   iconAnchor: [12, 41],
@@ -48,7 +51,7 @@ const userIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
-// Custom icon for the trip destination
+// icon for the trip destination 
 const uniqueTripDestinationIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-black.png', // Example: a black marker
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
@@ -58,7 +61,7 @@ const uniqueTripDestinationIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
-// Icons for different categories displayed in the filter bar
+// icons for the different categories on the filter bar
 const icons = {
   School: '🏫',
   'Fast Food': '🍔',
@@ -67,41 +70,7 @@ const icons = {
   'Gas Station': '⛽',
 };
 
-// Component to locate the user's current position on the map
-function LocateUser({ onLocate, setShowUserPopup, setMapCenter, setCustomNotification }) {
-  const map = useMap();
 
-  useEffect(() => {
-    if (!map) return;
-
-    map.locate({
-      setView: true,
-      maxZoom: 16,
-      enableHighAccuracy: true
-    }).on('locationfound', function (e) {
-      onLocate(e.latlng);
-      setMapCenter(e.latlng);
-      setShowUserPopup(true);
-
-      setTimeout(() => {
-        setShowUserPopup(false);
-      }, 5000);
-    });
-
-    map.on('locationerror', function (e) {
-      console.error("Location error:", e.message);
-      setCustomNotification({ message: "Could not retrieve your location. Please ensure location services are enabled.", type: 'error' });
-    });
-
-    return () => {
-      map.off('locationfound');
-      map.off('locationerror');
-    };
-  }, [map, onLocate, setShowUserPopup, setMapCenter, setCustomNotification]);
-  return null;
-}
-
-// Custom icons for different marker categories
 const categoryIcons = {
   School: new L.Icon({
     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
@@ -152,7 +121,7 @@ const categoryIcons = {
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
   }),
-  // NEW ICON FOR AI SUGGESTIONS
+  
   'AI Suggestion': new L.Icon({
     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-purple.png', // A distinct color for AI suggestions
     shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
@@ -162,12 +131,50 @@ const categoryIcons = {
   }),
 };
 
-// RoutingMachine component to display directions between two points or multiple waypoints
-const RoutingMachine = ({ waypoints, routingStateSetter }) => { // Modified to accept waypoints array
+
+// locates the user's current position on the map
+function LocateUser({ onLocate, setShowUserPopup, setMapCenter, setCustomNotification }) {
   const map = useMap();
-  const routingControlRef = useRef(null);
 
   useEffect(() => {
+    if (!map) return;
+
+    map.locate({
+      setView: true,
+      maxZoom: 16,
+      enableHighAccuracy: true
+    }).on('locationfound', function (e) {
+      onLocate(e.latlng);
+      setMapCenter(e.latlng);
+      setShowUserPopup(true);
+
+      setTimeout(() => {
+        setShowUserPopup(false);
+      }, 5000);
+    });
+
+    map.on('locationerror', function (e) {
+      console.error("Location error:", e.message);
+      setCustomNotification({ message: "Could not retrieve your location. Please ensure location services are enabled.", type: 'error' });
+    });
+
+    // to remove the 2 listed event listners below
+    return () => {
+      map.off('locationfound');
+      map.off('locationerror');
+    };
+  }, [map, onLocate, setShowUserPopup, setMapCenter, setCustomNotification]);
+  return null;
+}
+
+
+
+// component to display directions between two or multiple waypoints
+const RoutingMachine = ({ waypoints, routingStateSetter }) => { // Modified to accept waypoints array
+  const map = useMap();
+  const routingControlRef = useRef(null); 
+
+  useEffect(() => { // handles creation and destruction of routing
     if (!map || !waypoints || waypoints.length < 2) {
       routingStateSetter(false);
       if (routingControlRef.current) {
@@ -179,7 +186,7 @@ const RoutingMachine = ({ waypoints, routingStateSetter }) => { // Modified to a
 
     const leafletWaypoints = waypoints.map(p => L.latLng(p.lat, p.lng));
 
-    // Custom Plan to add a close button
+    // creating a custom direction plan once the routing is done to show the user the best possible route between the 2 or more points
     const createPlan = L.Routing.Plan.extend({
       createGeocoders: function () {
         const container = L.DomUtil.create('div', 'leaflet-routing-plan');
@@ -227,16 +234,16 @@ const RoutingMachine = ({ waypoints, routingStateSetter }) => { // Modified to a
       }
     });
 
-    // Remove existing routing control if it exists to prevent duplicates
+    // to remove existing routing control to prevent duplicates
     if (routingControlRef.current) {
       routingControlRef.current.remove();
       routingControlRef.current = null;
     }
 
-    const plan = new createPlan(leafletWaypoints, { // Use leafletWaypoints here
+    const plan = new createPlan(leafletWaypoints, { 
       geocoder: L.Control.Geocoder.nominatim(),
       routeWhileDragging: true,
-      createMarker: () => null // We will draw our own markers
+      createMarker: () => null 
     });
 
     const routingControl = L.Routing.control({
@@ -245,16 +252,16 @@ const RoutingMachine = ({ waypoints, routingStateSetter }) => { // Modified to a
         styles: [{ color: 'blue', weight: 6, opacity: 0.7 }]
       },
       showAlternatives: false,
-      addWaypoints: false, // Important: we manage waypoints ourselves
+      addWaypoints: false, 
       routeWhileDragging: true,
-      waypoints: leafletWaypoints // Pass waypoints here
+      waypoints: leafletWaypoints 
     });
 
     routingControl.addTo(map);
     routingControlRef.current = routingControl;
     routingStateSetter(true);
 
-    // Add event listener for the collapse button if it appears
+    // event listener for the collapse button if it appears
     setTimeout(() => {
       const closeBtn = document.querySelector('.leaflet-routing-collapse-btn');
       if (closeBtn) {
@@ -285,7 +292,7 @@ const RoutingMachine = ({ waypoints, routingStateSetter }) => { // Modified to a
       }
       routingStateSetter(false);
     };
-  }, [map, waypoints, routingStateSetter]); // waypoints is the new dependency
+  }, [map, waypoints, routingStateSetter]); 
 
   return null;
 };
@@ -302,10 +309,8 @@ const MapView = () => {
   const [address, setAddress] = useState('');
   const [activeFilters, setActiveFilters] = useState([]);
   const mapRef = useRef(null);
-  // MODIFIED: routing state structure
-  const [routing, setRouting] = useState(null); // { waypoints: [{lat, lng}, ...], routeType: 'single' | 'multi' }
+  const [routing, setRouting] = useState(null); 
   const [fetchedMarkers, setFetchedMarkers] = useState([]);
-
   const [nearMeSearchTerm, setNearMeSearchTerm] = useState('');
   const [showFilterBar, setShowFilterBar] = useState(false);
   const [, setSearchResults] = useState([]);
@@ -313,37 +318,27 @@ const MapView = () => {
   const [showUserPopup, setShowUserPopup] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [weatherData, setWeatherData] = useState(null);
-  const [, setIsRoutingActive] = useState(false); // Still used by RoutingMachine for internal state
+  const [, setIsRoutingActive] = useState(false); 
   const [showWeatherDetailsHover, setShowWeatherDetailsHover] = useState(false);
-
   const [tripDestination, setTripDestination] = useState(null);
   const [destinationSearchTerm, setDestinationSearchTerm] = useState('');
   const [destinationSuggestions, setDestinationSuggestions] = useState([]);
-
   const [currentSearchType, setCurrentSearchType] = useState('nearMe');
   const [showSearchOptions, setShowSearchOptions] = useState(false);
   const searchContainerRef = useRef(null);
-
   const [mapCenter, setMapCenter] = useState(null);
-
   const [customNotification, setCustomNotification] = useState(null);
   const predefinedMarkers = [];
-
   const sidebarRef = useRef(null);
-
   const [aiSearchTerm, setAiSearchTerm] = useState('');
   const [aiSuggestedMarkers, setAiSuggestedMarkers] = useState([]);
   const [isAiSearching, setIsAiSearching] = useState(false);
   const API_URL = process.env.REACT_APP_API_URL;
 
-
-
-  // State for showing info tooltips
-
-
+  // console logs to help in debugging
   console.log("Current state:", {
     userLocation,
-    routing, // Log routing state
+    routing, 
     markers: markers.length,
     activeFilters: activeFilters.join(','),
     nearMeSearchTerm,
@@ -367,8 +362,8 @@ const MapView = () => {
     }
   }, [showSidebar]);
 
-
-  useEffect(() => {
+// to load saved data 
+  useEffect(() => { 
     const stored = localStorage.getItem('markers');
     if (stored) setMarkers(JSON.parse(stored));
     const storedDestination = localStorage.getItem('tripDestination');
@@ -377,9 +372,11 @@ const MapView = () => {
     }
   }, []);
 
+// to save data when the state changes
   useEffect(() => {
     localStorage.setItem('tripDestination', JSON.stringify(tripDestination));
   }, [tripDestination]);
+
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -398,23 +395,26 @@ const MapView = () => {
     };
   }, []);
 
+// functions calls that are stored are reused to prevent unneccessary re-creations
   const handleDeleteMarker = useCallback((markerId) => {
     console.log("CLICKED: Delete Marker Button (from Popup or Sidebar) -", markerId);
     const updatedMarkers = markers.filter((m) => m.id !== markerId);
     setMarkers(updatedMarkers);
     localStorage.setItem('markers', JSON.stringify(updatedMarkers));
-    setRouting(null); // Clear routing if a deleted marker was part of a route
+    setRouting(null); 
     setCustomNotification({ message: "Place deleted!", type: 'success' });
-  }, [markers]);
+  }, [markers]); // ensures function is re-created only if the 'markers' state changes
 
   const handleSearchContainerBlur = useCallback((event) => {
+    // uses a setTimeout to handle the timing of the focus events correctly so the UI chaneges properly when switching between sidebar and search
     setTimeout(() => {
       const focusedElement = document.activeElement;
-
+// to check if focused element is still inside the search container, sidebar, or toggle button which will help decide whether to hide ui elements
       const isFocusInsideSearch = searchContainerRef.current && searchContainerRef.current.contains(focusedElement);
       const isFocusInsideSidebar = sidebarRef.current && sidebarRef.current.contains(focusedElement);
       const isFocusOnSidebarToggle = document.getElementById('sidebar-toggle-button')?.contains(focusedElement);
 
+      // if focus is not in these areas then its safe to hide search options
       if (
         !isFocusInsideSearch &&
         !isFocusInsideSidebar &&
@@ -422,6 +422,7 @@ const MapView = () => {
       ) {
         console.log("BLUR: Hiding search options and/or filter bar.");
         setShowSearchOptions(false);
+        // show the filter bar only if there is a destination set
         setShowFilterBar(!!tripDestination);
       } else {
         console.log("BLUR: Focus moved inside search/sidebar, not hiding options.");
@@ -429,10 +430,11 @@ const MapView = () => {
     }, 100);
   }, [tripDestination]);
 
+  // handles form submission for creating new marker
   const handleSubmit = (e) => {
     e.preventDefault();
     const newMarker = {
-      id: uuidv4(),
+      id: uuidv4(), // to generate unique key for each item
       position: newMarkerPosition,
       name: placeName,
       category: category || 'Other',
@@ -441,24 +443,27 @@ const MapView = () => {
     const updated = [...markers, newMarker];
     setMarkers(updated);
     localStorage.setItem('markers', JSON.stringify(updated));
+    // reset form states to prep for the next one
     setShowForm(false);
     setPlaceName('');
     setCategory('School');
     setNewMarkerPosition(null);
     setAddress('');
 
+    // weather data for new marker's location
     fetchWeather(newMarkerPosition.lat, newMarkerPosition.lng);
   };
 
+  // clearing of ALL saved markers
   const clearMarkers = () => {
     console.log("CLICKED: Clear All Markers Button");
     setMarkers([]);
     localStorage.removeItem('markers');
-    setRouting(null); // Clear any active route
+    setRouting(null); 
     setCustomNotification({ message: "All saved places cleared!", type: 'success' });
   };
 
-  // MODIFIED: handleGetDirections to use new routing state structure
+ 
   const handleGetDirections = useCallback((origin, destination) => {
     console.log(`CLICKED: Get Directions Button - From (${origin.lat}, ${origin.lng}) to (${destination.lat}, ${destination.lng})`);
 
@@ -474,50 +479,79 @@ const MapView = () => {
     setIsRoutingActive(true);
   }, []);
 
-  const fetchOverpassData = useCallback(async (category) => {
-    const locationForSearch = tripDestination || userLocation;
-    if (!locationForSearch) return [];
 
-    const overpassTags = {
-      School: 'amenity=school',
-      'Fast Food': 'amenity=fast_food',
-      Gym: 'leisure=fitness_centre',
-      Bank: 'amenity=bank',
-      'Gas Station': 'amenity=fuel',
-      Beach: 'natural=beach',
-      'Ice Cream': 'amenity=ice_cream',
-    };
+// fetch marker data from the Overpass API based on a filter category
+const fetchFilteredMarkers = useCallback(async (category) => {
+  const locationForSearch = tripDestination || userLocation;
+  if (!locationForSearch) return [];
 
-    const tag = overpassTags[category];
-    if (!tag) return [];
+  const overpassTags = {
+    School: 'amenity=school',
+    'Fast Food': 'amenity=fast_food',
+    Gym: 'leisure=fitness_centre',
+    Bank: 'amenity=bank',
+    'Gas Station': 'amenity=fuel',
+  };
+// look up the specific Overpass tag for the given category and if none then an empty array will be returned
+  const tag = overpassTags[category];
+  if (!tag) return [];
 
-  
+  try {
+    // this requests all relations that match the specified `tag within a 10km radius of the `locationForSearch`
+    const overpassQuery = `
+      [out:json][timeout:25];
+      (
+        node[${tag}](around:10000,${locationForSearch.lat},${locationForSearch.lng});
+        way[${tag}](around:10000,${locationForSearch.lat},${locationForSearch.lng});
+        relation[${tag}](around:10000,${locationForSearch.lat},${locationForSearch.lng});
+      );
+      out center;
+    `;
     
-    try {
-    const response = await fetch(`${API_URL}/ai-search`, { // <<< THIS IS THE CRITICAL CHANGE
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', },
-    body: JSON.stringify({ query: aiSearchTerm, userLocation: locationForSearch }),
-});
-      const data = await response.json();
+    // using the native fetch API to send the Overpass QL query to the Overpass API interpreter.
+    const response = await fetch("https://overpass-api.de/api/interpreter", {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/x-www-form-urlencoded' 
+      },
+      body: `data=${encodeURIComponent(overpassQuery)}`
+    });
 
-      return data.elements.map((el) => ({
-        id: `osm-${el.id}`,
-        position: {
-          lat: el.lat || el.center?.lat,
-          lng: el.lon || el.center?.lon,
-        },
-        name: el.tags?.name || category,
-        address: el.tags?.addr ? Object.values(el.tags.addr).join(', ') : '',
-        category: category,
-      })).filter((m) => m.position.lat && m.position.lng);
-    } catch (err) {
-      console.error('Error fetching Overpass data:', err);
-      return [];
+    if (!response.ok) {
+        throw new Error(`Overpass API responded with status ${response.status}`);
     }
-  }, [userLocation, tripDestination, aiSearchTerm, API_URL]);
 
-  useEffect(() => {
+    const data = await response.json();
+    
+    // process the Overpass response data
+    const results = data.elements.map((el) => ({
+      // create unique ID for the marker
+      id: `osm-${el.id}`,
+      position: {
+        // extract the latitude and longitude
+        lat: el.lat || el.center?.lat,
+        lng: el.lon || el.center?.lon,
+      },
+      // uses the name from the tags
+      name: el.tags?.name || category,
+      // create a displayable address string from the address tags
+      address: el.tags?.addr ? Object.values(el.tags.addr).join(', ') : '',
+      // assigns the original filter category to the marker 
+      category: category,
+      // filters out any results that are missing valid latitude or longitude coordinates
+    })).filter((m) => m.position.lat && m.position.lng);
+     // returns the final processed markers 
+    return results;
+
+  } catch (err) {
+    console.error('Error fetching Overpass data for filter:', err);
+    return [];
+  }
+
+  // this function is only re-created if `userLocation` or `tripDestination` change
+}, [userLocation, tripDestination]);
+
+  useEffect(() => { // fetch markers for all currently active filters
     const fetchAllActiveCategories = async () => {
       const locationForFilter = tripDestination || userLocation;
       if (!locationForFilter) {
@@ -525,9 +559,10 @@ const MapView = () => {
         return;
       }
 
-      const allFetched = [];
+      const allFetched = []; // loop through each active filter category
       for (const cat of activeFilters) {
-        const results = await fetchOverpassData(cat);
+        const results = await fetchFilteredMarkers(cat); 
+            
 
         const uniqueResults = results.filter(
           (newMarker) => !allFetched.some((existingMarker) => existingMarker.id === newMarker.id)
@@ -540,8 +575,9 @@ const MapView = () => {
     };
 
     fetchAllActiveCategories();
-  }, [fetchOverpassData, activeFilters, userLocation, tripDestination]);
+}, [fetchFilteredMarkers, activeFilters, userLocation, tripDestination]); 
 
+// handles adding or removing a category from the active filters list
   const toggleFilter = (cat) => {
     console.log("CLICKED: Filter Button -", cat);
     setActiveFilters((prevFilters) => {
@@ -551,9 +587,10 @@ const MapView = () => {
         return [...prevFilters, cat];
       }
     });
-    setRouting(null); // Clear route when filters change
+    setRouting(null); 
   };
 
+  // performs geocoding search using the Nominatim API
   const handleSearch = async () => {
     console.log("CLICKED: Near Me Search Button");
     if (!nearMeSearchTerm.trim()) {
@@ -561,7 +598,7 @@ const MapView = () => {
       return;
     }
 
-    try {
+    try { // gets data from the API
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(nearMeSearchTerm)}&limit=5&addressdetails=1`
       );
@@ -574,7 +611,7 @@ const MapView = () => {
         setSearchResults([]);
         setCustomNotification({ message: "No results found for your search.", type: 'error' });
       }
-      setRouting(null); // Clear route on new search
+      setRouting(null); 
       setShowFilterBar(false);
     } catch (error) {
       console.error("Error during geocoding search:", error);
@@ -582,7 +619,7 @@ const MapView = () => {
     }
   };
 
-  // MODIFIED: handleAISearch function for multi-stop routing
+  // logic for multi-stop routing using the gemini AI
   const handleAISearch = async () => {
     console.log("CLICKED: AI Search Button");
     if (!aiSearchTerm.trim()) {
@@ -603,6 +640,7 @@ const MapView = () => {
     }
 
     try {
+      // request to the backend 
       const response = await fetch(`${API_URL}/ai-search`, {
         method: 'POST',
         headers: {
@@ -650,10 +688,12 @@ const MapView = () => {
     }
   };
 
+  // cleans up the active filters for consistent comparison
   const normalizedActiveFilters = activeFilters
     .filter(Boolean)
     .map((f) => (f || '').trim().toLowerCase());
 
+// used to calculate distance between two points
   function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
     const R = 6371;
     const dLat = deg2rad(lat2 - lat1);
@@ -669,6 +709,7 @@ const MapView = () => {
     return d;
   }
 
+  // optimization for the search bar to prevent an API call on every keystroke
   function useDebounce(value, delay) {
     const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -745,10 +786,11 @@ const MapView = () => {
     return deg * (Math.PI / 180);
   }
 
+  // combines and filters all markers based on active filters and proximity
   const filteredMarkers = (() => {
     const locationToFilterBy = tripDestination || userLocation;
 
-    // Combine all marker sources
+
     const allMarkers = [...markers, ...predefinedMarkers, ...fetchedMarkers, ...aiSuggestedMarkers];
 
     if (activeFilters.length === 0 || !locationToFilterBy) {
@@ -756,6 +798,7 @@ const MapView = () => {
     }
 
     const filterAndMapMarkers = (markerArray) => {
+      // logic that checks if the marker's category is active and if it's within a 10km radius
       return markerArray.filter(
         (marker) =>
           marker.category &&
@@ -772,8 +815,9 @@ const MapView = () => {
     return filterAndMapMarkers(allMarkers);
   })();
 
+  // weather functionality
   const fetchWeather = async (lat, lng) => {
-    const apiKey = '21fc67147755e1e200b36618e837e9e3'; // Replace with your actual OpenWeatherMap API Key
+    const apiKey = '21fc67147755e1e200b36618e837e9e3'; 
     const fetchLat = lat || tripDestination?.lat || userLocation?.lat;
     const fetchLng = lng || tripDestination?.lng || userLocation?.lng;
 
@@ -877,9 +921,10 @@ const MapView = () => {
 
   console.log("MapView rendering");
 
+  // css 
   return (
     <>
-      <style>
+      <style> 
         {`
            body, html, input, button, select, div {
              font-family: 'Arial', 'Helvetica', sans-serif;
@@ -900,6 +945,7 @@ const MapView = () => {
            }
          `}
       </style>
+       {/* interactive filter buttons */}
       <style>
         {`
           .filter-button {
@@ -918,7 +964,7 @@ const MapView = () => {
           }
         `}
       </style>
-
+{/* Leaflet Routing Machine plugin look */}
       <style>
         {`
           .leaflet-routing-container {
@@ -964,6 +1010,7 @@ const MapView = () => {
         `}
       </style>
 
+  {/* keyframe animations used for various UI elements */}
 <style>
   {`
   /* NEW: CSS for bouncing dots animation */
@@ -997,7 +1044,7 @@ const MapView = () => {
         `}
       </style>
 
-      {/* NEW CSS for Tooltips */}
+            {/*  defines look and feel of the informational tooltips. */}
       <style>
   {`
     .info-icon-container {
@@ -1046,7 +1093,7 @@ const MapView = () => {
   `}
 </style>
 
-
+{/* conditional rendering block so contents will only be rendered if `customNotification` is not undefined*/}
       {customNotification && (
         <div
           style={{
@@ -1080,7 +1127,7 @@ const MapView = () => {
         `}
       </style>
 
-
+{/* appears when a place is successfully saved */}
       {savedNotification && (
         <div
           style={{
@@ -1099,6 +1146,8 @@ const MapView = () => {
           Place saved!
         </div>
       )}
+
+      {/* main container for the entire app layout */}
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
 
         <AnimatePresence>
@@ -1124,7 +1173,7 @@ const MapView = () => {
               }}
             >
               <span style={{ fontWeight: 'bold', alignSelf: 'center' }}></span>
-
+{/* dynamically map over the `icons` object to create a button for each category */}
               {Object.entries(icons).map(([cat, icon], i) => (
                 <motion.button
                   className={`filter-button ${activeFilters.includes(cat) ? 'active' : ''}`}
@@ -1166,6 +1215,7 @@ const MapView = () => {
           )}
         </AnimatePresence>
 
+{/* search container */}
         <div
           ref={searchContainerRef}
           onBlur={handleSearchContainerBlur}
@@ -1182,6 +1232,7 @@ const MapView = () => {
             flexDirection: 'column',
           }}
         >
+          {/* search option buttons like the toggles for the different search types */}
           <AnimatePresence>
             {showSearchOptions && (
               <motion.div
@@ -1200,7 +1251,7 @@ const MapView = () => {
                   background: 'transparent',
                   padding: '10px 15px',
                   borderRadius: '25px',
-                  zIndex: 999, // This is lower than the info icon container's zIndex
+                  zIndex: 999, 
                   boxSizing: 'border-box',
                 }}
               >
@@ -1213,7 +1264,7 @@ const MapView = () => {
                     setDestinationSuggestions([]);
                     setAiSearchTerm('');
                     setAiSuggestedMarkers([]);
-                    setRouting(null); // Clear route when switching search type
+                    setRouting(null); 
                     setShowFilterBar(true);
                   }}
                   style={{
@@ -1240,7 +1291,7 @@ const MapView = () => {
                     setSuggestions([]);
                     setAiSearchTerm('');
                     setAiSuggestedMarkers([]);
-                    setRouting(null); // Clear route when switching search type
+                    setRouting(null); 
                     setShowFilterBar(true);
                   }}
                   style={{
@@ -1267,7 +1318,7 @@ const MapView = () => {
                     setSuggestions([]);
                     setDestinationSearchTerm('');
                     setDestinationSuggestions([]);
-                    setRouting(null); // Clear route when switching search type
+                    setRouting(null); 
                     setShowFilterBar(false);
                   }}
                   style={{
@@ -1348,14 +1399,14 @@ const MapView = () => {
                   onClick={(e) => {
                     e.stopPropagation();
                     console.log("CLICKED: Near Me Search Info Button");
-                    // No action on click, just for hover
+                    
                   }}
                   style={{
                     background: 'transparent',
                     border: 'none',
                     color: '#888',
                     fontSize: '1.4em',
-                    cursor: 'default', // Change cursor to default to indicate no click action
+                    cursor: 'default', 
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1363,14 +1414,14 @@ const MapView = () => {
                   aria-label="Information about Near Me Search"
                   type="button"
                 >
-                  <img src={infoIcon} alt="info" style={{ width: '20px', height: '20px' }} /> {/* Changed to image */}
+                  <img src={infoIcon} alt="info" style={{ width: '20px', height: '20px' }} /> 
                 </button>
                 <div className="info-tooltip">
                   Search for places near your current location.
                 </div>
               </div>
 
-
+{/* suggestions dropdown which will only render if there are suggestions */}
               {suggestions.length > 0 && (
                 <div
                   style={{
@@ -1468,7 +1519,7 @@ const MapView = () => {
               )}
             </div>
           )}
-
+{/* renders this entire block only if `currentSearchType` is 'destination' */}
           {currentSearchType === 'destination' && (
             <div style={{ position: 'relative', width: '100%', marginTop: '0px' }}>
               <input
@@ -1507,6 +1558,7 @@ const MapView = () => {
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                 }}
               />
+              {/*  info icon and tooltip for this search type */}
               <div className="info-icon-container"
                 style={{
                   position: 'absolute',
@@ -1527,14 +1579,14 @@ const MapView = () => {
                   onClick={(e) => {
                     e.stopPropagation();
                     console.log("CLICKED: Trip Destination Search Info Button");
-                    // No action on click, just for hover
+                    
                   }}
                   style={{
                     background: 'transparent',
                     border: 'none',
                     color: '#6f42c1',
                     fontSize: '1.4em',
-                    cursor: 'default', // Change cursor to default to indicate no click action
+                    cursor: 'default', 
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1549,7 +1601,7 @@ const MapView = () => {
                 </div>
               </div>
 
-
+{/* destination suggestions dropdown */}
               {destinationSuggestions.length > 0 && (
                 <div
                   style={{
@@ -1597,6 +1649,7 @@ const MapView = () => {
                   })}
                 </div>
               )}
+{/* button to clear the trip destination */}
 
               {tripDestination && (
                 <button
@@ -1636,7 +1689,7 @@ const MapView = () => {
               )}
             </div>
           )}
-
+{/* renders this entire block only if `currentSearchType` is 'aiSearch' */}
           {currentSearchType === 'aiSearch' && (
             <div style={{ position: 'relative', width: '100%', marginTop: '0px' }}>
               <input
@@ -1690,14 +1743,14 @@ const MapView = () => {
                   onClick={(e) => {
                     e.stopPropagation();
                     console.log("CLICKED: AI Search Info Button");
-                    // No action on click, just for hover
+                    
                   }}
                   style={{
                     background: 'transparent',
                     border: 'none',
                     color: '#00a86b',
                     fontSize: '1.4em',
-                    cursor: 'default', // Change cursor to default to indicate no click action
+                    cursor: 'default', 
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1719,7 +1772,7 @@ const MapView = () => {
                 </div>
               </div>
 
-
+{/* displays the results from the AI search */}
               {aiSuggestedMarkers.length > 0 && (
                 <div
                   style={{
@@ -1773,7 +1826,7 @@ const MapView = () => {
                   <button
                     onClick={() => {
                       setAiSuggestedMarkers([]);
-                      setRouting(null); // Clear route when clearing AI suggestions
+                      setRouting(null); 
                     }}
                     style={{
                       marginTop: '10px',
@@ -1794,8 +1847,9 @@ const MapView = () => {
           )}
         </div>
 
-
+{/* main layout container */}
         <div style={{ flex: 1, position: 'relative' }}>
+          {/* form only appears if `showForm` is true and a map click has set a new marker position */}
           {showForm && newMarkerPosition && (
             <div
               style={{
@@ -1887,13 +1941,14 @@ const MapView = () => {
               </form>
             </div>
           )}
-
+{/* sidebar toggle button */}
           <div style={{
             position: 'absolute',
             top: '60px',
             right: '-10px',
             zIndex: 1000,
           }}>
+            {/* only shows this button if the sidebar is not visible */}
             {!showSidebar && (
               <button
                 onClick={(e) => {
@@ -1926,7 +1981,7 @@ const MapView = () => {
             )}
           </div>
 
-
+{/* saved places button on sidebar */}
           <AnimatePresence>
             {showSidebar && (
               <motion.div
@@ -2071,7 +2126,7 @@ const MapView = () => {
             )}
           </AnimatePresence>
 
-
+{/* leaflet map rendering */}
           <MapContainer
             center={[43.68, -79.76]}
             zoom={12}
@@ -2101,12 +2156,12 @@ const MapView = () => {
 
             <MapPanner targetPosition={mapCenter} />
 
-            {/* MODIFIED: Conditional rendering for RoutingMachine based on routing state */}
+            
             {routing && routing.waypoints && routing.waypoints.length >= 2 && (
               <RoutingMachine waypoints={routing.waypoints} routingStateSetter={setIsRoutingActive} />
             )}
 
-
+{/* marker rendering and popups */}
             {filteredMarkers.map((marker) => {
               const isFetched = marker.id.startsWith('osm-');
               const isAISuggested = marker.id.startsWith('ai-');
@@ -2140,12 +2195,12 @@ const MapView = () => {
                       </>
                     )}
 
-
+{/* conditionally renders "Get Directions" buttons based on available locations */}
                     {userLocation && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleGetDirections(userLocation, marker.position); // Removed 'type' param
+                          handleGetDirections(userLocation, marker.position); 
                         }}
                         style={{
                           marginTop: '0.5rem',
@@ -2177,7 +2232,7 @@ const MapView = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleGetDirections(tripDestination, marker.position); // Removed 'type' param
+                          handleGetDirections(tripDestination, marker.position); 
                         }}
                         style={{
                           marginTop: '0.5rem',
@@ -2205,7 +2260,7 @@ const MapView = () => {
                       </button>
                     )}
 
-
+{/* renders a "Save Place" button only if the marker is new and not already saved */}
                     {(isFetched || isAISuggested) && !alreadySaved && (
                       <button
                         onClick={(e) => {
@@ -2259,7 +2314,7 @@ const MapView = () => {
                       </button>
                     )}
 
-
+{/* renders a "Delete" button only if the marker is already saved */}
                     {alreadySaved && (
                       <button
                         onClick={(e) => {
@@ -2297,7 +2352,7 @@ const MapView = () => {
             );
             })}
 
-
+{/* renders a marker for the user's location if available */}
             {userLocation && (
               <Marker
                 position={userLocation}
@@ -2316,7 +2371,7 @@ const MapView = () => {
                 )}
               </Marker>
             )}
-
+{/* renders a marker for the trip destination if it has been set */}
             {tripDestination && (
               <Marker position={tripDestination} icon={uniqueTripDestinationIcon}>
                 <Popup>
@@ -2326,7 +2381,9 @@ const MapView = () => {
               </Marker>
             )}
 
+{/* weather display */}
 
+{/* conditionally renders the weather display if the data is available */}
             {weatherData?.main?.temp && weatherData.name && (
               <div
                 style={{
