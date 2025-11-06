@@ -1,15 +1,13 @@
-// server.js - Express.js Backend for AI Search (Expanded Overpass Tag Map)
+require('dotenv').config(); 
 
-require('dotenv').config();
-
-const express = require('express');
-const cors = require('cors');
-const axios = require('axios');
+const express = require('express'); 
+const cors = require('cors'); 
+const axios = require('axios'); 
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:3000'; // Default to localhost for local dev
+const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:3000'; 
 
 const corsOptions = {
   origin: allowedOrigin,
@@ -28,12 +26,12 @@ if (!GEMINI_API_KEY) {
     console.warn("WARNING: GEMINI_API_KEY is not set in your .env file. AI search will not function.");
 }
 
-// Helper function for a small delay
+
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Helper function to calculate distance between two lat/lng points
+
 function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-    const R = 6371; // Radius of Earth in kilometers
+    const R = 6371; 
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a =
@@ -45,7 +43,7 @@ function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
     return d;
 }
 
-// UPDATED: Mapping for common place types to Overpass API tags
+
 const overpassTagMap = {
     "fast food restaurant": "amenity=fast_food",
     "fast food": "amenity=fast_food",
@@ -60,74 +58,74 @@ const overpassTagMap = {
     "bank": "amenity=bank",
     "gas station": "amenity=fuel",
     "school": "amenity=school",
-    "work": "office", // This one is tricky, 'office' is a tag, but broad. May need refinement.
-    "bakery": "shop=bakery", // Example: New entry for bakeries
-    "fire station": "amenity=fire_station", // Example: New entry for fire stations
-    "library": "amenity=library", // NEW
-    "pharmacy": "amenity=pharmacy", // NEW
-    "supermarket": "shop=supermarket", // NEW
-    "grocery store": "shop=supermarket", // NEW
-    "hospital": "amenity=hospital", // NEW
-    "clinic": "amenity=clinic", // NEW
-    "hotel": "tourism=hotel", // NEW
-    "motel": "tourism=motel", // NEW
-    "museum": "tourism=museum", // NEW
-    "art gallery": "tourism=art_gallery", // NEW
-    "cinema": "amenity=cinema", // NEW
-    "theatre": "amenity=theatre", // NEW
-    "post office": "amenity=post_office", // NEW
-    "police station": "amenity=police", // NEW
-    "fire station": "amenity=fire_station", // NEW
-    "bus stop": "highway=bus_stop", // NEW
-    "train station": "railway=station", // NEW
-    "subway station": "railway=subway_station", // NEW
-    "shopping mall": "shop=mall", // NEW
-    "bookstore": "shop=books", // NEW
-    "clothing store": "shop=clothes", // NEW
-    "electronics store": "shop=electronics", // NEW
-    "hardware store": "shop=hardware", // NEW
-    "car repair": "shop=car_repair", // NEW
-    "car wash": "amenity=car_wash", // NEW
-    "parking": "amenity=parking", // NEW
-    "public toilet": "amenity=toilets", // NEW
-    "atm": "amenity=atm", // NEW
-    "veterinarian": "amenity=veterinary", // NEW
-    "dentist": "amenity=dentist", // NEW
-    "doctor": "amenity=doctors", // NEW
-    "bar": "amenity=bar", // NEW
-    "pub": "amenity=pub", // NEW
-    "nightclub": "amenity=nightclub", // NEW
-    "cafe": "amenity=cafe", // Duplicate of coffee shop, but good to have
-    "bakery": "shop=bakery", // Duplicate, but good for robustness
-    "florist": "shop=florist", // NEW
-    "hairdresser": "shop=hairdresser", // NEW
-    "beauty salon": "shop=beauty", // NEW
-    "laundry": "shop=laundry", // NEW
-    "dry cleaning": "shop=dry_cleaning", // NEW
-    "shoe store": "shop=shoes", // NEW
-    "jewelry store": "shop=jewelry", // NEW
-    "toy store": "shop=toys", // NEW
-    "pet store": "shop=pet", // NEW
-    "sports store": "shop=sports", // NEW
-    "outdoor store": "shop=outdoor", // NEW
-    "bicycle store": "shop=bicycle", // NEW
-    "pharmacy": "amenity=pharmacy", // Duplicate, but good for robustness
-    "convenience store": "shop=convenience", // NEW
-    "kiosk": "amenity=kiosk", // NEW
-    "fast food": "amenity=fast_food", // Duplicate, but good for robustness
-    "restaurant": "amenity=restaurant", // Duplicate, but good for robustness
-    "cafe": "amenity=cafe", // Duplicate, but good for robustness
-    "pub": "amenity=pub", // Duplicate, but good for robustness
-    "bar": "amenity=bar", // Duplicate, but good for robustness
-    "park": "leisure=park", // Duplicate, but good for robustness
-    "beach": "natural=beach", // Duplicate, but good for robustness
-    "gym": "leisure=fitness_centre", // Duplicate, but good for robustness
-    "bank": "amenity=bank", // Duplicate, but good for robustness
-    "gas station": "amenity=fuel", // Duplicate, but good for robustness
-    "school": "amenity=school", // Duplicate, but good for robustness
+    "work": "office", 
+    "bakery": "shop=bakery", 
+    "fire station": "amenity=fire_station", 
+    "library": "amenity=library", 
+    "pharmacy": "amenity=pharmacy", 
+    "supermarket": "shop=supermarket", 
+    "grocery store": "shop=supermarket", 
+    "hospital": "amenity=hospital", 
+    "clinic": "amenity=clinic", 
+    "hotel": "tourism=hotel", 
+    "motel": "tourism=motel", 
+    "museum": "tourism=museum", 
+    "art gallery": "tourism=art_gallery", 
+    "cinema": "amenity=cinema", 
+    "theatre": "amenity=theatre", 
+    "post office": "amenity=post_office", 
+    "police station": "amenity=police", 
+    "fire station": "amenity=fire_station", 
+    "bus stop": "highway=bus_stop", 
+    "train station": "railway=station", 
+    "subway station": "railway=subway_station", 
+    "shopping mall": "shop=mall", 
+    "bookstore": "shop=books", 
+    "clothing store": "shop=clothes", 
+    "electronics store": "shop=electronics", 
+    "hardware store": "shop=hardware", 
+    "car repair": "shop=car_repair", 
+    "car wash": "amenity=car_wash", 
+    "parking": "amenity=parking", 
+    "public toilet": "amenity=toilets", 
+    "atm": "amenity=atm", 
+    "veterinarian": "amenity=veterinary", 
+    "dentist": "amenity=dentist", 
+    "doctor": "amenity=doctors", 
+    "bar": "amenity=bar", 
+    "pub": "amenity=pub", 
+    "nightclub": "amenity=nightclub", 
+    "cafe": "amenity=cafe", 
+    "bakery": "shop=bakery", 
+    "florist": "shop=florist", 
+    "hairdresser": "shop=hairdresser", 
+    "beauty salon": "shop=beauty", 
+    "laundry": "shop=laundry", 
+    "dry cleaning": "shop=dry_cleaning", 
+    "shoe store": "shop=shoes", 
+    "jewelry store": "shop=jewelry", 
+    "toy store": "shop=toys", 
+    "pet store": "shop=pet", 
+    "sports store": "shop=sports", 
+    "outdoor store": "shop=outdoor", 
+    "bicycle store": "shop=bicycle", 
+    "pharmacy": "amenity=pharmacy", 
+    "convenience store": "shop=convenience", 
+    "kiosk": "amenity=kiosk", 
+    "fast food": "amenity=fast_food", 
+    "restaurant": "amenity=restaurant", 
+    "cafe": "amenity=cafe", 
+    "pub": "amenity=pub", 
+    "bar": "amenity=bar", 
+    "park": "leisure=park", 
+    "beach": "natural=beach", 
+    "gym": "leisure=fitness_centre", 
+    "bank": "amenity=bank", 
+    "gas station": "amenity=fuel", 
+    "school": "amenity=school", 
 };
 
-// NEW: Helper function to map AI query terms to frontend display categories
+
 function mapQueryTermToFrontendCategory(queryTerm) {
     const normalizedTerm = queryTerm.toLowerCase();
     switch (normalizedTerm) {
@@ -145,116 +143,111 @@ function mapQueryTermToFrontendCategory(queryTerm) {
             return "Gas Station";
         case "ice cream shop":
         case "ice cream":
-            return "Ice Cream"; // Assuming you have an 'Ice Cream' icon if you fetch it
+            return "Ice Cream"; 
         case "beach":
-            return "Beach"; // Assuming you have a 'Beach' icon
+            return "Beach"; 
         case "park":
-            return "Park"; // Assuming you have a 'Park' icon
-        case "restaurant":
-            return "Restaurant"; // Assuming you have a 'Restaurant' icon
+            return "Park";       
+            return "Restaurant"; 
         case "bakery":
-            return "Bakery"; // Assuming you have a 'Bakery' icon
+            return "Bakery"; 
         case "fire station":
-            return "Fire Station"; // Assuming you have a 'Fire Station' icon
+            return "Fire Station"; 
         case "library":
-            return "Library"; // Assuming you have a 'Library' icon
+            return "Library"; 
         case "pharmacy":
-            return "Pharmacy"; // Assuming you have a 'Pharmacy' icon
+            return "Pharmacy"; 
         case "supermarket":
         case "grocery store":
-            return "Supermarket"; // Assuming you have a 'Supermarket' icon
+            return "Supermarket"; 
         case "hospital":
-            return "Hospital"; // Assuming you have a 'Hospital' icon
+            return "Hospital"; 
         case "clinic":
-            return "Clinic"; // Assuming you have a 'Clinic' icon
+            return "Clinic"; 
         case "hotel":
         case "motel":
-            return "Hotel"; // Assuming you have a 'Hotel' icon
+            return "Hotel"; 
         case "museum":
-            return "Museum"; // Assuming you have a 'Museum' icon
+            return "Museum"; 
         case "art gallery":
-            return "Art Gallery"; // Assuming you have an 'Art Gallery' icon
+            return "Art Gallery"; 
         case "cinema":
-            return "Cinema"; // Assuming you have a 'Cinema' icon
+            return "Cinema"; 
         case "theatre":
-            return "Theatre"; // Assuming you have a 'Theatre' icon
+            return "Theatre"; 
         case "post office":
-            return "Post Office"; // Assuming you have a 'Post Office' icon
+            return "Post Office";
         case "police station":
-            return "Police Station"; // Assuming you have a 'Police Station' icon
+            return "Police Station"; 
         case "bus stop":
-            return "Bus Stop"; // Assuming you have a 'Bus Stop' icon
+            return "Bus Stop"; 
         case "train station":
-            return "Train Station"; // Assuming you have a 'Train Station' icon
+            return "Train Station"; 
         case "subway station":
-            return "Subway Station"; // Assuming you have a 'Subway Station' icon
+            return "Subway Station"; 
         case "shopping mall":
-            return "Shopping Mall"; // Assuming you have a 'Shopping Mall' icon
+            return "Shopping Mall"; 
         case "bookstore":
-            return "Bookstore"; // Assuming you have a 'Bookstore' icon
+            return "Bookstore"; 
         case "clothing store":
-            return "Clothing Store"; // Assuming you have a 'Clothing Store' icon
+            return "Clothing Store"; 
         case "electronics store":
-            return "Electronics Store"; // Assuming you have an 'Electronics Store' icon
+            return "Electronics Store";
         case "hardware store":
-            return "Hardware Store"; // Assuming you have a 'Hardware Store' icon
+            return "Hardware Store";
         case "car repair":
-            return "Car Repair"; // Assuming you have a 'Car Repair' icon
+            return "Car Repair"; 
         case "car wash":
-            return "Car Wash"; // Assuming you have a 'Car Wash' icon
+            return "Car Wash"; 
         case "parking":
-            return "Parking"; // Assuming you have a 'Parking' icon
+            return "Parking"; 
         case "public toilet":
-            return "Public Toilet"; // Assuming you have a 'Public Toilet' icon
+            return "Public Toilet";
         case "atm":
-            return "ATM"; // Assuming you have an 'ATM' icon
-        case "veterinarian":
-            return "Veterinarian"; // Assuming you have a 'Veterinarian' icon
+            return "ATM"; 
+            return "Veterinarian"; 
         case "dentist":
-            return "Dentist"; // Assuming you have a 'Dentist' icon
+            return "Dentist"; 
         case "doctor":
-            return "Doctor"; // Assuming you have a 'Doctor' icon
+            return "Doctor"; 
         case "bar":
-            return "Bar"; // Assuming you have a 'Bar' icon
-        case "pub":
-            return "Pub"; // Assuming you have a 'Pub' icon
-        case "nightclub":
-            return "Nightclub"; // Assuming you have a 'Nightclub' icon
+            return "Bar"; 
+            return "Pub"; 
+            return "Nightclub"; 
         case "cafe":
-            return "Cafe"; // Assuming you have a 'Cafe' icon
-        case "florist":
-            return "Florist"; // Assuming you have a 'Florist' icon
+            return "Cafe"; 
+            return "Florist"; 
         case "hairdresser":
-            return "Hairdresser"; // Assuming you have a 'Hairdresser' icon
+            return "Hairdresser"; 
         case "beauty salon":
-            return "Beauty Salon"; // Assuming you have a 'Beauty Salon' icon
+            return "Beauty Salon"; 
         case "laundry":
-            return "Laundry"; // Assuming you have a 'Laundry' icon
+            return "Laundry"; 
         case "dry cleaning":
-            return "Dry Cleaning"; // Assuming you have a 'Dry Cleaning' icon
+            return "Dry Cleaning"; 
         case "shoe store":
-            return "Shoe Store"; // Assuming you have a 'Shoe Store' icon
+            return "Shoe Store"; 
         case "jewelry store":
-            return "Jewelry Store"; // Assuming you have a 'Jewelry Store' icon
+            return "Jewelry Store"; 
         case "toy store":
-            return "Toy Store"; // Assuming you have a 'Toy Store' icon
+            return "Toy Store"; 
         case "pet store":
-            return "Pet Store"; // Assuming you have a 'Pet Store' icon
+            return "Pet Store"; 
         case "sports store":
-            return "Sports Store"; // Assuming you have a 'Sports Store' icon
+            return "Sports Store"; 
         case "outdoor store":
-            return "Outdoor Store"; // Assuming you have an 'Outdoor Store' icon
+            return "Outdoor Store"; 
         case "bicycle store":
-            return "Bicycle Store"; // Assuming you have a 'Bicycle Store' icon
+            return "Bicycle Store"; 
         case "convenience store":
-            return "Convenience Store"; // Assuming you have a 'Convenience Store' icon
+            return "Convenience Store"; 
         case "kiosk":
-            return "Kiosk"; // Assuming you have a 'Kiosk' icon
+            return "Kiosk"; 
         case "work":
-            return "Work"; // This one is tricky, 'office' is a tag, but broad. May need refinement.
+            return "Work"; 
         default:
-            // Fallback to 'Other' if no specific mapping, or create a new 'Generic AI' category
-            return "Other"; // Ensure you have an 'Other' icon in MapView.jsx's categoryIcons
+           
+            return "Other"; 
     }
 }
 
@@ -278,7 +271,7 @@ app.post('/ai-search', async (req, res) => {
 
     let orderedPlaceTypes = [];
 
-    // Step 1: Use Gemini API to extract an ordered list of place types
+   
     try {
         const geminiPrompt = `
         Analyze the following user request for a sequence of places of interest. Extract an ordered list of distinct place types mentioned. If a place type is not explicitly mentioned but implied (e.g., "get ice cream" implies "ice cream shop"), infer it.
@@ -340,9 +333,9 @@ app.post('/ai-search', async (req, res) => {
         'User-Agent': 'NearMeMapApp/1.0 (rayyanusmani@example.com)'
     };
 
-    // Step 2: Determine user's country code using Nominatim Reverse Geocoding (optional for Overpass, but good for logs)
+   
     try {
-        await sleep(1000); // Respect Nominatim rate limit
+        await sleep(1000); 
         const reverseGeocodeUrl = `${nominatimBaseUrl}/reverse`;
         const reverseGeocodeParams = {
             format: 'json',
@@ -367,10 +360,10 @@ app.post('/ai-search', async (req, res) => {
     }
 
 
-    // Step 3: Perform sequential Overpass API searches
+   
     for (const queryTerm of orderedPlaceTypes) {
         try {
-            await sleep(1000); // Wait for 1 second between Overpass calls
+            await sleep(1000); 
 
             const overpassTag = overpassTagMap[queryTerm.toLowerCase()];
             if (!overpassTag) {
@@ -378,7 +371,7 @@ app.post('/ai-search', async (req, res) => {
                 continue;
             }
 
-            const radius = 50000; // Search within 50 km radius (adjust as needed)
+            const radius = 50000; 
             const overpassQuery = `
                 [out:json][timeout:25];
                 (
@@ -426,9 +419,9 @@ app.post('/ai-search', async (req, res) => {
                     position: { lat: closestResult.lat || closestResult.center?.lat, lng: closestResult.lon || closestResult.center?.lon },
                     name: closestResult.tags?.name || queryTerm,
                     address: closestResult.tags?.["addr:full"] || closestResult.tags?.["addr:street"] || closestResult.tags?.["addr:housenumber"] || closestResult.tags?.["addr:city"] || closestResult.tags?.["addr:country"] || closestResult.tags?.name || closestResult.type,
-                    // ⬇️ THIS IS THE CRUCIAL CHANGE ⬇️
-                    category: mapQueryTermToFrontendCategory(queryTerm), // Set category based on the found type
-                    type: queryTerm // Keep 'type' if you use it for display in your list
+                   
+                    category: mapQueryTermToFrontendCategory(queryTerm), 
+                    type: queryTerm 
                 };
                 sequentialMarkers.push(foundMarker);
                 currentOrigin = foundMarker.position;
