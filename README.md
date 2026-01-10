@@ -5,7 +5,8 @@ It uses Google Gemini AI for semantic search and personalized route generation, 
 
 ![Screenshot](frontend/nrmess.png)
 
-*Feel free to check out the project [here](https://nrme.site)!*
+Feel free to check out the project [here](https://nrme.site)!
+
 
 ---
 
