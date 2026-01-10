@@ -22,8 +22,6 @@ It uses Google Gemini AI for semantic search and personalized route generation, 
 ![React](https://img.shields.io/badge/React-%2320232a?style=for-the-badge&logo=react&logoColor=%2361DAFB)
 ![Node.js](https://img.shields.io/badge/Node.js-%23339933?style=for-the-badge&logo=node.js&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-%23F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
-![HTML5](https://img.shields.io/badge/HTML5-%23E34F26?style=for-the-badge&logo=html5&logoColor=white)
-![CSS3](https://img.shields.io/badge/CSS3-%231572B6?style=for-the-badge&logo=css3&logoColor=white)
 ![Google Gemini AI](https://img.shields.io/badge/Google_Gemini_AI-%23FF6600?style=for-the-badge&logo=ai&logoColor=white)
 ![Leaflet](https://img.shields.io/badge/Leaflet-%2300AAFF?style=for-the-badge&logo=leaflet&logoColor=white)
 
