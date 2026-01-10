@@ -3,7 +3,8 @@
 **Near Me** is a full-stack mapping web app with a React/Leaflet frontend and Node.js backend. 
 It uses Google Gemini AI for semantic search and personalized route generation, and integrates real-time weather and traffic updates for an interactive user experience.
 
-![Screenshot](assets/store_screenshot.jpg)  
+![Screenshot](assets/nrmess.png)
+
 *Feel free to check out the project [here](https://nrme.site)!*
 
 ---
@@ -24,5 +25,8 @@ It uses Google Gemini AI for semantic search and personalized route generation, 
 ![JavaScript](https://img.shields.io/badge/JavaScript-%23F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
 ![Google Gemini AI](https://img.shields.io/badge/Google_Gemini_AI-%23FF6600?style=for-the-badge&logo=ai&logoColor=white)
 ![Leaflet](https://img.shields.io/badge/Leaflet-%2300AAFF?style=for-the-badge&logo=leaflet&logoColor=white)
+![OpenWeather API](https://img.shields.io/badge/OpenWeather_API-%2300BFFF?style=for-the-badge&logo=openweathermap&logoColor=white)
+![Overpass API](https://img.shields.io/badge/Overpass_API-%2300AA00?style=for-the-badge&logo=openstreetmap&logoColor=white)
+
 
 ---
