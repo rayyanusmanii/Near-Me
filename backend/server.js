@@ -7,10 +7,22 @@ const axios = require('axios');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:3000'; 
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3000',
+  'https://nrme.site',
+];
 
 const corsOptions = {
-  origin: allowedOrigin,
+  origin: (origin, callback) => {
+    // allow requests with no origin (e.g. curl, Postman) and any allowed origin
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS blocked for origin: ${origin}`));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
@@ -147,8 +159,9 @@ function mapQueryTermToFrontendCategory(queryTerm) {
         case "beach":
             return "Beach"; 
         case "park":
-            return "Park";       
-            return "Restaurant"; 
+            return "Park";
+        case "restaurant":
+            return "Restaurant";
         case "bakery":
             return "Bakery"; 
         case "fire station":
@@ -204,8 +217,9 @@ function mapQueryTermToFrontendCategory(queryTerm) {
         case "public toilet":
             return "Public Toilet";
         case "atm":
-            return "ATM"; 
-            return "Veterinarian"; 
+            return "ATM";
+        case "veterinarian":
+            return "Veterinarian";
         case "dentist":
             return "Dentist"; 
         case "doctor":
@@ -273,14 +287,21 @@ app.post('/ai-search', async (req, res) => {
 
    
     try {
+        const allowedPlaceTypes = Object.keys(overpassTagMap).join(', ');
         const geminiPrompt = `
-        Analyze the following user request for a sequence of places of interest. Extract an ordered list of distinct place types mentioned. If a place type is not explicitly mentioned but implied (e.g., "get ice cream" implies "ice cream shop"), infer it.
-        
+        Analyze the following user request for a sequence of places of interest. Extract an ordered list of distinct place types the user wants to visit.
+
+        You MUST only return place types from this exact approved list:
+        ${allowedPlaceTypes}
+
+        If the user implies a place type (e.g. "get food" implies "restaurant", "work out" implies "gym", "grab a coffee" implies "cafe"), map it to the closest term in the approved list.
+        If a place type cannot be reasonably matched to any term in the approved list, omit it.
+
         User request: "${userQuery}"
-        
-        Provide the response in JSON format with a single field 'orderedPlaces', which is an array of strings.
+
+        Provide the response in JSON format with a single field 'orderedPlaces', which is an array of strings from the approved list only.
         Example 1: {"orderedPlaces": ["beach", "ice cream shop"]}
-        Example 2: {"orderedPlaces": ["fast food restaurant", "gym"]}
+        Example 2: {"orderedPlaces": ["restaurant", "gym"]}
         Example 3: {"orderedPlaces": ["park"]}
         `;
         
@@ -449,4 +470,4 @@ app.post('/ai-search', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Express server running on http://localhost:${PORT}`);
-});
+})
